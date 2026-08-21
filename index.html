@@ -1,0 +1,1956 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Symoh Store</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#5a3a22">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Symoh Store">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --paper:#c7a97b;
+    --paper-deep:#b6944e;
+    --tag:#ecdfba;
+    --ink:#221b12;
+    --crate:#5a3a22;
+    --crate-dark:#402a18;
+    --stamp:#b7381f;
+    --teal:#2e5c55;
+    --line: rgba(34,27,18,0.28);
+    --shadow: 0 10px 24px rgba(34,27,18,0.28);
+    --surface:#fbf6e9;
+  }
+  html[data-theme="dark"]{
+    --paper:#211c16;
+    --paper-deep:#171310;
+    --tag:#2b241b;
+    --ink:#ecdfba;
+    --crate:#3a2f22;
+    --crate-dark:#171310;
+    --stamp:#e05a3f;
+    --teal:#5fb3a4;
+    --line: rgba(236,223,186,0.2);
+    --shadow: 0 10px 24px rgba(0,0,0,0.5);
+    --surface:#181410;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Work Sans', sans-serif;
+    color:var(--ink);
+    background:
+      repeating-linear-gradient(135deg, rgba(0,0,0,0.02) 0 2px, transparent 2px 6px),
+      var(--paper);
+    min-height:100vh;
+    transition:background .2s ease, color .2s ease;
+  }
+  h1,h2,h3,.display{
+    font-family:'Oswald', sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    margin:0;
+  }
+  .mono{font-family:'JetBrains Mono', monospace;}
+  button, input, textarea, select{font-family:inherit; font-size:inherit;}
+  button{cursor:pointer;}
+  a{color:var(--teal);}
+
+  /* ---------- layout shells ---------- */
+  .screen{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+  .hidden{display:none !important;}
+
+  /* ---------- login ---------- */
+  .gate-card{
+    width:100%; max-width:380px;
+    background:var(--tag);
+    border:2px solid var(--ink);
+    border-radius:4px;
+    padding:32px 28px 28px;
+    box-shadow:var(--shadow);
+    position:relative;
+  }
+  .gate-card::before{
+    content:"";
+    position:absolute; top:-10px; left:20px; right:20px; height:20px;
+    background-image: radial-gradient(circle, var(--paper) 5px, transparent 5.5px);
+    background-size: 20px 20px;
+    background-position: 0 0;
+  }
+  .gate-mark{
+    width:56px;height:56px;margin:0 auto 14px;
+    border:2px solid var(--ink); border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .gate-title{text-align:center; font-size:26px;}
+  .gate-sub{text-align:center; font-size:12px; letter-spacing:0.18em; text-transform:uppercase; color:var(--crate-dark); margin-top:4px; margin-bottom:22px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--crate-dark); margin-bottom:6px;}
+  .field input, .field select{
+    width:100%; padding:11px 12px; border:1.5px solid var(--ink); border-radius:3px;
+    background:var(--surface); color:var(--ink);
+  }
+  .field input:focus, .field select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border:2px solid var(--ink); border-radius:3px; padding:11px 18px;
+    background:var(--ink); color:var(--tag);
+    font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:0.08em; font-size:13px;
+    transition:transform .12s ease;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn:disabled{opacity:0.6; cursor:default;}
+  .btn.block{width:100%;}
+  .btn.stamp{background:var(--stamp); border-color:var(--stamp); color:#fbf6e9;}
+  .btn.ghost{background:transparent; color:var(--ink);}
+  .btn.teal{background:var(--teal); border-color:var(--teal); color:#fbf6e9;}
+  .btn.sm{padding:6px 10px; font-size:11px;}
+  .err{color:var(--stamp); font-size:12.5px; margin-top:10px; text-align:center;}
+  .hint{font-size:11px; color:var(--crate-dark); text-align:center; margin-top:16px; line-height:1.5;}
+
+  /* ---------- app shell ---------- */
+  .app{max-width:1080px; margin:0 auto; padding:18px 16px 60px;}
+  .topbar{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    background:var(--crate); color:var(--tag);
+    border:2px solid var(--ink); border-radius:4px;
+    padding:14px 16px; margin-bottom:12px; box-shadow:var(--shadow);
+  }
+  .brand{font-size:20px; white-space:nowrap;}
+  .brand span{color:var(--stamp);}
+  .search-wrap{flex:1; min-width:160px; display:flex; align-items:center; gap:8px; background:var(--surface); border:1.5px solid var(--ink); border-radius:3px; padding:8px 10px;}
+  .search-wrap input{flex:1; border:none; background:transparent; color:var(--ink);}
+  .search-wrap input:focus{outline:none;}
+  .topbar .btn{padding:9px 14px; font-size:12px;}
+  .icon-btn{
+    border:1.5px solid var(--tag); background:transparent; color:var(--tag);
+    border-radius:3px; padding:8px 10px; font-size:14px;
+  }
+
+  .stats-bar{
+    display:flex; gap:16px; flex-wrap:wrap; font-size:11.5px; color:var(--crate-dark);
+    margin-bottom:18px; padding:0 4px;
+  }
+  .stats-bar b{color:var(--ink);}
+
+  .offline-banner{
+    background:var(--stamp); color:#fff; border-radius:4px; padding:10px 14px;
+    font-size:12.5px; margin-bottom:16px; text-align:center;
+  }
+
+  .trash-row{
+    display:flex; align-items:center; gap:10px; background:var(--surface);
+    border:1px solid var(--line); border-radius:4px; padding:8px 10px; font-size:12px;
+  }
+  .trash-row .trash-info{flex:1; min-width:0;}
+  .trash-row .trash-desc{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .trash-row .trash-meta{color:var(--crate-dark); font-size:10.5px;}
+  .trash-row .btn{padding:6px 9px; font-size:10px;}
+
+  .filter-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:20px;}
+  .pill-group{display:flex; gap:6px; flex-wrap:wrap;}
+  .pill{
+    padding:6px 12px; border:1.5px solid var(--ink); border-radius:20px; background:transparent; color:var(--ink);
+    font-family:'Oswald',sans-serif; letter-spacing:0.05em; text-transform:uppercase; font-size:11px;
+  }
+  .pill.active{background:var(--ink); color:var(--tag);}
+  .filter-bar select{
+    border:1.5px solid var(--ink); border-radius:3px; padding:7px 10px; background:var(--surface); color:var(--ink); font-size:12px;
+  }
+
+  .section-title{font-size:14px; letter-spacing:0.14em; color:var(--crate-dark); margin-bottom:12px; display:flex; align-items:center; gap:10px;}
+  .section-title::after{content:""; flex:1; height:1px; background:var(--line);}
+
+  /* ---------- intake form ---------- */
+  .intake{
+    background:var(--tag); border:2px solid var(--ink); border-radius:4px;
+    padding:20px; margin-bottom:30px; box-shadow:var(--shadow);
+  }
+  .tabs{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+  .tab-btn{
+    padding:8px 14px; border:1.5px solid var(--ink); border-radius:20px; background:transparent; color:var(--ink);
+    font-family:'Oswald',sans-serif; letter-spacing:0.06em; text-transform:uppercase; font-size:12px;
+  }
+  .tab-btn.active{background:var(--ink); color:var(--tag);}
+  .src-toggle{display:flex; gap:8px; margin-bottom:14px;}
+  .src-btn{
+    flex:1; padding:9px; border:1.5px dashed var(--ink); border-radius:3px; background:var(--surface); color:var(--ink);
+    font-size:12.5px; text-align:center;
+  }
+  .src-btn.active{background:var(--ink); color:var(--tag); border-style:solid;}
+  .field textarea{
+    width:100%; padding:11px 12px; border:1.5px solid var(--ink); border-radius:3px;
+    background:var(--surface); color:var(--ink); resize:vertical; min-height:70px;
+  }
+  .dropzone{
+    border:2px dashed var(--ink); border-radius:4px; padding:22px 12px; text-align:center;
+    background:var(--surface); cursor:pointer; font-size:12.5px; color:var(--crate-dark);
+  }
+  .dropzone.drag-over{background:var(--tag); border-color:var(--teal); color:var(--teal);}
+  .dropzone input{display:none;}
+  .file-list{display:flex; flex-direction:column; gap:4px; margin-top:8px; font-size:11.5px;}
+  .file-list span{display:flex; justify-content:space-between; background:var(--surface); padding:4px 8px; border-radius:3px;}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .intake-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:6px;}
+  .progress{font-size:12px; color:var(--crate-dark); margin-top:8px;}
+
+  /* ---------- grid ---------- */
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:18px;}
+  .card{
+    background:var(--tag); border:2px solid var(--ink); border-radius:4px; overflow:hidden;
+    box-shadow:var(--shadow); display:flex; flex-direction:column; position:relative;
+  }
+  .card-media{height:150px; background:var(--crate-dark); display:flex; align-items:center; justify-content:center; overflow:hidden;}
+  .card-media img, .card-media video{width:100%; height:100%; object-fit:cover;}
+  .card-media .icon{color:var(--tag); font-size:34px;}
+  .stamp-tag{
+    position:absolute; top:10px; right:10px; transform:rotate(6deg);
+    border:2px solid var(--stamp); color:var(--stamp); border-radius:4px;
+    padding:2px 8px; font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:0.1em;
+    background:rgba(251,246,233,0.85);
+  }
+  .expired-tag{
+    position:absolute; top:10px; left:10px;
+    background:var(--stamp); color:#fff; border-radius:4px; padding:2px 8px;
+    font-family:'Oswald',sans-serif; font-size:9.5px; letter-spacing:0.1em;
+  }
+  .select-check{position:absolute; top:10px; left:10px; width:20px; height:20px; z-index:2;}
+  .card-body{padding:12px 14px 14px; display:flex; flex-direction:column; gap:8px; flex:1;}
+  .card-desc{font-size:13.5px; line-height:1.4; flex:1; word-break:break-word;}
+  .tag-pills{display:flex; flex-wrap:wrap; gap:4px;}
+  .tag-pill{font-size:9.5px; padding:2px 7px; border-radius:10px; background:var(--surface); border:1px solid var(--line); color:var(--crate-dark);}
+  .card-meta{font-size:10.5px; color:var(--crate-dark); display:flex; justify-content:space-between; border-top:1px dashed var(--line); padding-top:8px;}
+  .card-actions{display:flex; gap:6px; flex-wrap:wrap;}
+  .card-actions .btn{flex:1; padding:7px 8px; font-size:10.5px; min-width:60px;}
+  .empty{
+    text-align:center; padding:50px 20px; color:var(--crate-dark);
+    border:2px dashed var(--line); border-radius:4px;
+  }
+
+  /* ---------- modal ---------- */
+  .modal-back{position:fixed; inset:0; background:rgba(34,27,18,0.55); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50;}
+  .modal{
+    background:var(--tag); border:2px solid var(--ink); border-radius:4px; max-width:420px; width:100%;
+    padding:24px; box-shadow:var(--shadow); text-align:center; max-height:90vh; overflow:auto;
+  }
+  .modal .code{
+    font-size:22px; letter-spacing:0.08em; background:var(--ink); color:var(--tag);
+    padding:10px; border-radius:3px; margin:14px 0; word-break:break-all;
+  }
+  .modal .qr{margin:14px auto; border:2px solid var(--ink); border-radius:4px; display:block;}
+  .link-row{display:flex; flex-direction:column; gap:10px; margin:16px 0;}
+  .link-row .btn{width:100%;}
+  .copied{font-size:11px; color:var(--teal); margin-top:4px; height:14px;}
+
+  /* ---------- public view page ---------- */
+  .pub-wrap{max-width:520px; margin:0 auto; padding:40px 18px;}
+  .pub-card{
+    background:var(--tag); border:2px solid var(--ink); border-radius:4px; overflow:hidden; box-shadow:var(--shadow);
+  }
+  .pub-media{width:100%; max-height:460px; background:var(--crate-dark); display:flex; align-items:center; justify-content:center;}
+  .pub-media img, .pub-media video{width:100%; max-height:460px; object-fit:contain;}
+  .pub-body{padding:20px;}
+  .pub-foot{text-align:center; margin-top:18px; font-size:12px; color:var(--crate-dark);}
+
+  /* ---------- toast ---------- */
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:var(--tag); border-radius:4px; padding:12px 16px;
+    display:flex; align-items:center; gap:14px; font-size:13px; box-shadow:var(--shadow); z-index:60;
+  }
+  .toast button{background:none; border:none; color:var(--stamp); font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:0.06em; font-size:12px;}
+
+  /* ---------- bulk bar ---------- */
+  .bulk-bar{
+    display:none; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--stamp); color:#fff; border-radius:4px; padding:10px 14px; margin-bottom:16px;
+    font-size:12.5px;
+  }
+  .bulk-bar.show{display:flex;}
+
+  @media (max-width:480px){
+    .brand{font-size:17px;}
+    .modal{padding:18px;}
+    .two-col{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= PUBLIC SINGLE-ITEM VIEW ================= -->
+<div id="pub-screen" class="screen hidden">
+  <div class="pub-wrap" style="width:100%;">
+
+    <!-- password gate -->
+    <div id="pub-gate" class="gate-card" style="margin:0 auto;">
+      <div class="gate-mark">🔒</div>
+      <div class="gate-title" style="font-size:20px;">Locked parcel</div>
+      <div class="gate-sub">Enter the access word to view</div>
+      <form id="pub-gate-form">
+        <div class="field">
+          <label for="pub-password">Password</label>
+          <input id="pub-password" type="password" autocomplete="off" required />
+        </div>
+        <button type="submit" class="btn stamp block">Unlock</button>
+        <div class="err hidden" id="pub-gate-err">Wrong password.</div>
+      </form>
+    </div>
+
+    <!-- revealed content -->
+    <div id="pub-content" class="hidden">
+      <div class="pub-card">
+        <div id="pub-media" class="pub-media"></div>
+        <div class="pub-body">
+          <div class="stamp-tag" style="position:static; display:inline-block; transform:rotate(-2deg); margin-bottom:10px;" id="pub-type"></div>
+          <p id="pub-desc" style="font-size:15px; line-height:1.5;"></p>
+          <div class="tag-pills" id="pub-tags" style="margin-bottom:10px;"></div>
+          <div class="card-meta" id="pub-meta"></div>
+          <a id="pub-download" class="btn ghost block" style="margin-top:14px;" href="#">⬇ Download</a>
+        </div>
+      </div>
+      <div class="pub-foot">Shipped via <strong>Symoh Store</strong> · <a href="#" id="pub-home">open the store</a></div>
+    </div>
+
+    <div id="pub-notfound" class="hidden pub-card" style="padding:24px; text-align:center;">
+      <div class="display" style="font-size:18px; margin-bottom:8px;">Not found</div>
+      <p style="font-size:13px;">This parcel doesn't exist, expired, or was removed.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= LOGIN ================= -->
+<div id="login-screen" class="screen">
+  <form class="gate-card" id="login-form">
+    <div class="gate-mark">📦</div>
+    <div class="gate-title">Symoh <span style="color:var(--stamp)">Store</span></div>
+    <div class="gate-sub">Checkpoint · handlers only</div>
+    <div class="field">
+      <label for="username">Handler ID</label>
+      <input id="username" autocomplete="username" placeholder="Symoh" required />
+    </div>
+    <div class="field">
+      <label for="password">Access Code</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="••••••••••" required />
+    </div>
+    <div class="field" style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="remember-device" style="width:16px; height:16px;" />
+      <label for="remember-device" style="margin:0; text-transform:none; letter-spacing:normal; font-size:12px;">Remember this device (skip 1-minute auto sign-out)</label>
+    </div>
+    <button type="submit" class="btn stamp block" id="login-btn">Clear Checkpoint</button>
+    <div class="err hidden" id="login-err"></div>
+  </form>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app-screen" class="app hidden">
+  <div class="topbar">
+    <div class="brand">Symoh <span>Store</span></div>
+    <div class="search-wrap">
+      <span aria-hidden="true">🔍</span>
+      <input id="search-input" placeholder="Search the manifest…" />
+    </div>
+    <button class="btn teal" id="new-parcel-btn">＋ New Parcel</button>
+    <button class="icon-btn hidden" id="install-btn" title="Install Symoh Store">⬇ Install</button>
+    <button class="icon-btn" id="theme-toggle" title="Toggle dark mode">🌙</button>
+    <button class="btn ghost" id="select-toggle">Select</button>
+    <button class="btn ghost" id="trash-btn">🗑 Trash</button>
+    <button class="btn ghost" id="backup-btn">⬇ Backup</button>
+    <button class="icon-btn" id="autosignout-toggle" title="Toggle auto sign-out">🔒 Auto sign-out: On</button>
+    <button class="btn ghost" id="signout-btn">Sign out</button>
+  </div>
+
+  <div class="offline-banner hidden" id="offline-banner">📡 You're offline — showing your last synced parcels. New uploads are queued and will ship automatically once you're back online.</div>
+
+  <div class="stats-bar" id="stats-bar"></div>
+
+  <div class="bulk-bar" id="bulk-bar">
+    <span id="bulk-count">0 selected</span>
+    <button class="btn stamp sm" id="bulk-delete">Delete selected</button>
+  </div>
+
+  <div class="filter-bar">
+    <div class="pill-group" id="type-filter">
+      <button class="pill active" data-type="all">All</button>
+      <button class="pill" data-type="image">Image</button>
+      <button class="pill" data-type="video">Video</button>
+      <button class="pill" data-type="file">File</button>
+    </div>
+    <select id="album-filter">
+      <option value="">All albums</option>
+    </select>
+    <select id="sort-select">
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+      <option value="type">By type</option>
+    </select>
+  </div>
+
+  <div class="intake hidden" id="intake">
+    <div class="section-title">Intake a new parcel</div>
+    <div class="tabs">
+      <button type="button" class="tab-btn active" data-type="image">Image</button>
+      <button type="button" class="tab-btn" data-type="video">Video</button>
+      <button type="button" class="tab-btn" data-type="file">File</button>
+    </div>
+    <div class="src-toggle">
+      <button type="button" class="src-btn active" data-src="upload">⬆ Upload from device</button>
+      <button type="button" class="src-btn" data-src="link">🔗 Paste a link</button>
+    </div>
+    <div class="field" id="upload-field">
+      <label>Choose file(s) — or drag &amp; drop</label>
+      <div class="dropzone" id="dropzone">
+        <div id="dropzone-label">Tap to choose files, or drop them here</div>
+        <input type="file" id="file-input" multiple />
+      </div>
+      <div class="file-list" id="file-list"></div>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:8px; text-transform:none; letter-spacing:normal; font-size:12px;">
+        <input type="checkbox" id="compress-checkbox" checked style="width:16px; height:16px;" />
+        Compress images before upload (smaller, faster — recommended)
+      </label>
+    </div>
+    <div class="field hidden" id="link-field">
+      <label>URL</label>
+      <input type="url" id="link-input" placeholder="https://…" />
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="desc-input" placeholder="What's in this parcel? (applies to all files if uploading several)"></textarea>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Tags</label>
+        <input id="tags-input" placeholder="comma, separated, tags" />
+      </div>
+      <div class="field">
+        <label>Link expires</label>
+        <select id="expiry-select">
+          <option value="never">Never</option>
+          <option value="1">1 day</option>
+          <option value="7">7 days</option>
+          <option value="30">30 days</option>
+        </select>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Album</label>
+        <select id="album-select">
+          <option value="">No album</option>
+          <option value="__new__">＋ New album…</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Custom share code (optional)</label>
+        <input id="share-code-input" placeholder="Leave blank for a random code" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Share password</label>
+      <input id="share-password-input" value="Techn" placeholder="Password required to open this share link" />
+    </div>
+    <div class="intake-actions">
+      <button type="button" class="btn ghost" id="cancel-intake">Cancel</button>
+      <button type="button" class="btn stamp" id="ship-btn">Ship it</button>
+    </div>
+    <div class="progress hidden" id="progress-text"></div>
+  </div>
+
+  <div id="pending-section" class="hidden"></div>
+
+  <div class="section-title">Manifest</div>
+  <div id="grid" class="grid"></div>
+</div>
+
+<!-- ================= SHIP / SHARE MODAL ================= -->
+<div id="ship-modal" class="modal-back hidden">
+  <div class="modal">
+    <div class="display" style="font-size:18px;" id="ship-title">Parcel shipped</div>
+    <div class="code mono" id="ship-code"></div>
+    <div class="qr" id="ship-qr" style="width:150px; height:150px; display:flex; align-items:center; justify-content:center; background:#fff;"></div>
+    <div class="hint" style="margin-top:0;">Anyone with the link needs the password you set for this parcel to view it.</div>
+    <div class="link-row">
+      <button class="btn teal" id="copy-preview">Copy preview link</button>
+      <button class="btn stamp" id="copy-share">Copy share link</button>
+    </div>
+    <div class="copied" id="copied-msg"></div>
+    <button class="btn ghost block" id="close-modal">Done</button>
+  </div>
+</div>
+
+<!-- ================= EDIT MODAL ================= -->
+<div id="edit-modal" class="modal-back hidden">
+  <div class="modal" style="text-align:left;">
+    <div class="display" style="font-size:18px; text-align:center; margin-bottom:14px;">Edit parcel</div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="edit-desc"></textarea>
+    </div>
+    <div class="field">
+      <label>Tags</label>
+      <input id="edit-tags" placeholder="comma, separated, tags" />
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Album</label>
+        <select id="edit-album-select">
+          <option value="">No album</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Share code</label>
+        <input id="edit-share-code" />
+      </div>
+    </div>
+    <div class="field">
+      <label>New share password</label>
+      <input id="edit-password" placeholder="Leave blank to keep the current password" />
+    </div>
+    <div class="intake-actions">
+      <button type="button" class="btn ghost" id="edit-cancel">Cancel</button>
+      <button type="button" class="btn stamp" id="edit-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= IMAGE EDIT MODAL (rotate/crop) ================= -->
+<div id="image-edit-modal" class="modal-back hidden">
+  <div class="modal" style="max-width:420px;">
+    <div class="display" style="font-size:18px;">Edit image</div>
+    <canvas id="edit-canvas" style="max-width:100%; max-height:50vh; border:2px solid var(--ink); border-radius:4px; margin:14px 0; background:#000;"></canvas>
+    <div class="link-row" style="flex-direction:row; flex-wrap:wrap; gap:8px; justify-content:center;">
+      <button type="button" class="btn ghost sm" id="rotate-left-btn">⟲ Rotate</button>
+      <button type="button" class="btn ghost sm" id="rotate-right-btn">⟳ Rotate</button>
+      <button type="button" class="btn ghost sm" id="crop-square-btn">Crop 1:1</button>
+      <button type="button" class="btn ghost sm" id="crop-wide-btn">Crop 16:9</button>
+      <button type="button" class="btn ghost sm" id="crop-reset-btn">Reset</button>
+    </div>
+    <div class="intake-actions">
+      <button type="button" class="btn ghost" id="edit-image-cancel">Cancel</button>
+      <button type="button" class="btn stamp" id="edit-image-save">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TRASH MODAL ================= -->
+<div id="trash-modal" class="modal-back hidden">
+  <div class="modal" style="text-align:left; max-width:480px;">
+    <div class="display" style="font-size:18px; text-align:center;">Trash</div>
+    <div class="hint" style="margin-top:6px;">Deleted parcels stay here for 30 days, then they're purged for good.</div>
+    <div id="trash-list" style="display:flex; flex-direction:column; gap:8px; margin:16px 0; max-height:50vh; overflow:auto;"></div>
+    <button type="button" class="btn ghost block" id="trash-close">Close</button>
+  </div>
+</div>
+
+<!-- ================= BACKUP MODAL ================= -->
+<div id="backup-modal" class="modal-back hidden">
+  <div class="modal" style="text-align:left; max-width:440px;">
+    <div class="display" style="font-size:18px; text-align:center;">Backup</div>
+    <div class="hint" style="margin-top:6px;">Export everything in your manifest. The full backup includes the actual files; the data-only export is just the descriptions, tags, and links.</div>
+    <div class="link-row">
+      <button type="button" class="btn teal" id="export-json-btn">Export data (JSON)</button>
+      <button type="button" class="btn stamp" id="export-zip-btn">Export full backup (ZIP + files)</button>
+    </div>
+
+    <div style="border-top:1px dashed var(--line); margin:18px 0 14px; padding-top:14px;">
+      <div class="section-title" style="margin-bottom:8px;">Restore</div>
+      <div class="hint" style="margin-top:0;">Restoring adds parcels as new entries — it won't overwrite or merge with what's already here. Every restored link gets the password <strong class="mono">Techn</strong>; change it from Edit afterward if you want something else.</div>
+      <div class="field" style="margin-top:10px;">
+        <input type="file" id="restore-input" accept=".zip,.json" />
+      </div>
+      <button type="button" class="btn teal block" id="restore-btn">Restore from backup</button>
+    </div>
+
+    <div class="progress hidden" id="backup-progress"></div>
+    <button type="button" class="btn ghost block" id="backup-close">Close</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://uivlfniqirbmuxjbbwis.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdmxmbmlxaXJibXV4amJid2lzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2NTkzNTQsImV4cCI6MjEwMjIzNTM1NH0.M4sIN4SkG3dLnPHYuvXzCLrrKW5VbPCCx38lYARHZ_c";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const BUCKET = "symoh-store";
+const USERNAME_EMAIL_MAP = { "symoh": "symoh@symohstore.app" };
+
+const el = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+
+function baseUrl(){
+  return location.origin + location.pathname;
+}
+function shareUrlFor(shareId){
+  return baseUrl() + "?item=" + encodeURIComponent(shareId);
+}
+function renderQr(container, link){
+  container.innerHTML = "";
+  if (typeof QRCode === "undefined"){
+    container.textContent = "QR unavailable offline";
+    container.style.fontSize = "11px";
+    container.style.color = "var(--crate-dark)";
+    return;
+  }
+  new QRCode(container, { text: link, width: 150, height: 150, correctLevel: QRCode.CorrectLevel.M });
+}
+function fmtBytes(n){
+  if (!n) return "0 B";
+  const units = ["B","KB","MB","GB"];
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1){ n /= 1024; i++; }
+  return n.toFixed(i === 0 ? 0 : 1) + " " + units[i];
+}
+
+/* ---------------- PWA: SERVICE WORKER + INSTALL + OFFLINE ---------------- */
+if ("serviceWorker" in navigator){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").then((reg) => {
+      reg.addEventListener("updatefound", () => {
+        const incoming = reg.installing;
+        if (!incoming) return;
+        incoming.addEventListener("statechange", () => {
+          if (incoming.state === "installed" && navigator.serviceWorker.controller){
+            showUpdateToast(reg);
+          }
+        });
+      });
+    }).catch((err) => console.warn("SW registration failed:", err));
+  });
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data?.type === "PROCESS_OUTBOX") processOutbox();
+  });
+  let swRefreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (swRefreshing) return;
+    swRefreshing = true;
+    window.location.reload();
+  });
+}
+
+let updateToastShown = false;
+function showUpdateToast(reg){
+  if (updateToastShown) return;
+  updateToastShown = true;
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.innerHTML = `<span>New version ready</span><button>Reload</button>`;
+  toast.querySelector("button").addEventListener("click", () => {
+    reg.waiting?.postMessage("SKIP_WAITING");
+    toast.remove();
+  });
+  document.body.appendChild(toast);
+}
+
+let deferredInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  el("install-btn")?.classList.remove("hidden");
+});
+el("install-btn")?.addEventListener("click", async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  el("install-btn").classList.add("hidden");
+});
+window.addEventListener("appinstalled", () => {
+  el("install-btn")?.classList.add("hidden");
+});
+
+function updateOnlineStatus(){
+  const online = navigator.onLine;
+  el("offline-banner")?.classList.toggle("hidden", online);
+  const shipBtn = el("ship-btn");
+  if (shipBtn){
+    shipBtn.textContent = online ? "Ship it" : "Ship it (queues offline)";
+  }
+  if (online) processOutbox();
+}
+window.addEventListener("online", updateOnlineStatus);
+window.addEventListener("offline", updateOnlineStatus);
+
+async function registerBackgroundSync(){
+  try{
+    if ("serviceWorker" in navigator && "SyncManager" in window){
+      const reg = await navigator.serviceWorker.ready;
+      await reg.sync.register("symoh-outbox-sync");
+    }
+  } catch(err){ /* Background Sync unsupported — the 'online' listener still covers it while the app is open */ }
+}
+
+/* ---------------- OFFLINE OUTBOX (IndexedDB queue for uploads made while offline) ---------------- */
+const OUTBOX_DB = "symoh-outbox";
+const OUTBOX_STORE = "pending";
+
+function openOutboxDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(OUTBOX_DB, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(OUTBOX_STORE)){
+        db.createObjectStore(OUTBOX_STORE, { keyPath: "id", autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function addToOutbox(item){
+  const db = await openOutboxDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(OUTBOX_STORE, "readwrite");
+    const req = tx.objectStore(OUTBOX_STORE).add(item);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function getAllOutbox(){
+  const db = await openOutboxDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(OUTBOX_STORE, "readonly");
+    const req = tx.objectStore(OUTBOX_STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function deleteFromOutbox(id){
+  const db = await openOutboxDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(OUTBOX_STORE, "readwrite");
+    const req = tx.objectStore(OUTBOX_STORE).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+let processingOutbox = false;
+async function processOutbox(){
+  if (processingOutbox || !navigator.onLine) return;
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  processingOutbox = true;
+  try{
+    const items = await getAllOutbox();
+    for (const item of items){
+      try{
+        if (item.source === "upload"){
+          for (let i = 0; i < item.files.length; i++){
+            const file = item.files[i];
+            const path = `${user.id}/${Date.now()}-${i}-${file.name}`;
+            const { error: upErr } = await sb.storage.from(BUCKET).upload(path, file);
+            if (upErr) throw upErr;
+            const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(path);
+            let thumb_url = null;
+            {
+              const thumbBlob = await makeThumbnailForFile(file, item.media_type);
+              if (thumbBlob){
+                const thumbPath = `${user.id}/thumb-${Date.now()}-${i}-${file.name}.jpg`;
+                const { error: thumbErr } = await sb.storage.from(BUCKET).upload(thumbPath, thumbBlob);
+                if (!thumbErr){
+                  const { data: thumbPub } = sb.storage.from(BUCKET).getPublicUrl(thumbPath);
+                  thumb_url = thumbPub.publicUrl;
+                }
+              }
+            }
+            const insertPayload = {
+              media_type: item.media_type, source: "upload", media_url: pub.publicUrl, thumb_url,
+              file_name: file.name, file_size: file.size, description: item.description, tags: item.tags,
+              expires_at: item.expires_at, album_id: item.album_id || null, created_by: user.id
+            };
+            if (item.shareCode) insertPayload.share_id = item.files.length > 1 ? `${item.shareCode}-${i+1}` : item.shareCode;
+            const { data: inserted, error } = await sb.from("posts").insert(insertPayload).select().single();
+            if (error) throw error;
+            await sb.rpc("set_share_password", { p_post_id: inserted.id, p_password: item.password || "Techn" });
+          }
+        } else {
+          const insertPayload = {
+            media_type: item.media_type, source: "link", media_url: item.link, file_name: null,
+            description: item.description, tags: item.tags, expires_at: item.expires_at, album_id: item.album_id || null, created_by: user.id
+          };
+          if (item.shareCode) insertPayload.share_id = item.shareCode;
+          const { data: inserted, error } = await sb.from("posts").insert(insertPayload).select().single();
+          if (error) throw error;
+          await sb.rpc("set_share_password", { p_post_id: inserted.id, p_password: item.password || "Techn" });
+        }
+        await deleteFromOutbox(item.id);
+      } catch(err){
+        console.warn("Outbox item failed, will retry later:", err);
+      }
+    }
+  } finally {
+    processingOutbox = false;
+    refreshPendingSection();
+    loadPosts();
+  }
+}
+
+async function refreshPendingSection(){
+  const wrap = el("pending-section");
+  if (!wrap) return;
+  let items = [];
+  try{ items = await getAllOutbox(); } catch(err){ items = []; }
+  if (!items.length){ wrap.classList.add("hidden"); wrap.innerHTML = ""; return; }
+  wrap.classList.remove("hidden");
+  wrap.innerHTML = `<div class="section-title">Pending sync (${items.length})</div><div class="grid" style="margin-bottom:24px;">` +
+    items.map(pendingCardMarkup).join("") + `</div>`;
+}
+
+function pendingCardMarkup(item){
+  let mediaHtml = `<div class="icon">🔗</div>`;
+  if (item.source === "upload" && item.files && item.files[0]){
+    const url = URL.createObjectURL(item.files[0]);
+    if (item.media_type === "image") mediaHtml = `<img src="${url}" />`;
+    else if (item.media_type === "video") mediaHtml = `<video src="${url}" muted></video>`;
+    else mediaHtml = `<div class="icon">📄</div>`;
+  }
+  const extra = item.source === "upload" && item.files && item.files.length > 1 ? ` +${item.files.length - 1} more` : "";
+  return `
+    <div class="card">
+      <div class="card-media">${mediaHtml}</div>
+      <div class="stamp-tag" style="border-color:var(--teal); color:var(--teal);">QUEUED</div>
+      <div class="card-body">
+        <div class="card-desc">${(item.description || "(no description)").replace(/</g,"&lt;")}${extra}</div>
+        <div class="card-meta"><span>Waiting for connection…</span><span>${item.media_type.toUpperCase()}</span></div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------------- THEME ---------------- */
+(function initTheme(){
+  const saved = localStorage.getItem("symoh_theme");
+  if (saved === "dark"){
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+el("theme-toggle")?.addEventListener("click", () => {
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  if (isDark){
+    document.documentElement.removeAttribute("data-theme");
+    localStorage.setItem("symoh_theme", "light");
+  } else {
+    document.documentElement.setAttribute("data-theme", "dark");
+    localStorage.setItem("symoh_theme", "dark");
+  }
+});
+
+/* ---------------- FORCE DOWNLOAD ---------------- */
+async function forceDownload(url, filename, btn){
+  const originalLabel = btn ? btn.textContent : null;
+  if (btn){ btn.textContent = "Downloading…"; btn.disabled = true; }
+  try{
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) throw new Error("fetch failed: " + res.status);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename || "download";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+  } catch(err){
+    window.open(url, "_blank");
+  } finally {
+    if (btn){ btn.textContent = originalLabel; btn.disabled = false; }
+  }
+}
+
+/* ---------------- PUBLIC SINGLE ITEM VIEW (password gated) ---------------- */
+let pendingShareId = null;
+
+function initPublicView(shareId){
+  el("login-screen").classList.add("hidden");
+  el("app-screen").classList.add("hidden");
+  el("pub-screen").classList.remove("hidden");
+  el("pub-home").href = baseUrl();
+  pendingShareId = shareId;
+}
+
+el("pub-gate-form")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  el("pub-gate-err").classList.add("hidden");
+  const pw = el("pub-password").value;
+  const submitBtn = el("pub-gate-form").querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+
+  const { data, error } = await sb.rpc("get_shared_post", { p_share_id: pendingShareId, p_password: pw });
+  submitBtn.disabled = false;
+
+  if (error){
+    el("pub-gate-err").textContent = "Something went wrong — try again.";
+    el("pub-gate-err").classList.remove("hidden");
+    return;
+  }
+
+  switch (data?.status){
+    case "ok":
+      renderPublicContent(data.post);
+      return;
+    case "wrong_password": {
+      const left = data.attempts_left;
+      el("pub-gate-err").textContent = (typeof left === "number" && left <= 2)
+        ? `Wrong password. ${left} attempt${left === 1 ? "" : "s"} left before this link locks temporarily.`
+        : "Wrong password.";
+      el("pub-gate-err").classList.remove("hidden");
+      return;
+    }
+    case "locked":
+      el("pub-gate-err").textContent = `Too many attempts — this link is locked for about ${data.retry_after_minutes} minutes.`;
+      el("pub-gate-err").classList.remove("hidden");
+      return;
+    case "not_found":
+    default:
+      el("pub-gate-err").textContent = "This parcel doesn't exist, expired, or was removed.";
+      el("pub-gate-err").classList.remove("hidden");
+      return;
+  }
+});
+
+function renderPublicContent(data){
+  el("pub-gate").classList.add("hidden");
+  el("pub-content").classList.remove("hidden");
+  el("pub-type").textContent = data.media_type.toUpperCase();
+  el("pub-desc").textContent = data.description || "(no description)";
+  el("pub-meta").innerHTML = `<span>${data.file_name || data.source}</span><span>${new Date(data.created_at).toLocaleDateString()}</span>`;
+  el("pub-tags").innerHTML = (data.tags || []).map(t => `<span class="tag-pill">${t}</span>`).join("");
+  el("pub-media").innerHTML = mediaMarkup(data, true);
+  const dl = el("pub-download");
+  dl.onclick = (e) => { e.preventDefault(); forceDownload(data.media_url, data.file_name || data.share_id, dl); };
+}
+
+/* ---------------- MEDIA RENDERING ---------------- */
+function isYouTube(url){ return /(?:youtube\.com|m\.youtube\.com)\/(watch\?v=|shorts\/|embed\/)|youtu\.be\//.test(url); }
+function ytEmbed(url){
+  let id = "";
+  const m1 = url.match(/[?&]v=([^&]+)/);
+  const m2 = url.match(/youtu\.be\/([^?&]+)/);
+  const m3 = url.match(/\/shorts\/([^?&]+)/);
+  const m4 = url.match(/\/embed\/([^?&]+)/);
+  if (m1) id = m1[1]; else if (m2) id = m2[1]; else if (m3) id = m3[1]; else if (m4) id = m4[1];
+  return `https://www.youtube.com/embed/${id}`;
+}
+
+function mediaMarkup(post, large){
+  const url = post.media_url;
+  if (post.media_type === "image"){
+    const src = (!large && post.thumb_url) ? post.thumb_url : url;
+    return `<img src="${src}" alt="parcel image" loading="lazy" />`;
+  }
+  if (post.media_type === "video"){
+    if (post.source === "link" && isYouTube(url)){
+      return `<iframe src="${ytEmbed(url)}" style="width:100%;height:${large?'300px':'150px'};border:0;" allowfullscreen></iframe>`;
+    }
+    if (!large && post.thumb_url){
+      return `<img src="${post.thumb_url}" alt="video thumbnail" loading="lazy" />`;
+    }
+    return `<video src="${url}" ${large ? 'controls' : 'muted'}></video>`;
+  }
+  return `<div class="icon" style="display:flex;flex-direction:column;align-items:center;gap:8px;color:#ecdfba;">
+            <span style="font-size:38px;">📄</span>
+            <a href="${url}" target="_blank" rel="noopener" style="color:#ecdfba;font-size:12px;">${large ? 'Open file' : 'Open'}</a>
+          </div>`;
+}
+
+/* ---------------- AUTH ---------------- */
+el("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  el("login-err").classList.add("hidden");
+  const uname = el("username").value.trim().toLowerCase();
+  const pw = el("password").value;
+  const email = USERNAME_EMAIL_MAP[uname];
+  const btn = el("login-btn");
+  if (!email){
+    el("login-err").textContent = "Unrecognized handler ID.";
+    el("login-err").classList.remove("hidden");
+    return;
+  }
+  btn.textContent = "Checking…";
+  btn.disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  btn.textContent = "Clear Checkpoint";
+  btn.disabled = false;
+  if (error){
+    el("login-err").textContent = "Access denied — check your credentials.";
+    el("login-err").classList.remove("hidden");
+    return;
+  }
+  localStorage.setItem("symoh_remember_device", el("remember-device").checked ? "1" : "0");
+  showApp();
+});
+
+el("signout-btn").addEventListener("click", async () => {
+  clearInactivityTimer();
+  await sb.auth.signOut();
+  location.reload();
+});
+
+async function showApp(){
+  el("login-screen").classList.add("hidden");
+  el("pub-screen").classList.add("hidden");
+  el("app-screen").classList.remove("hidden");
+  updateOnlineStatus();
+  updateAutoSignoutBtn();
+  startInactivityWatch();
+  await purgeOldTrash();
+  await refreshPendingSection();
+  await loadAlbums();
+  loadPosts();
+}
+
+/* ---------------- AUTO SIGN-OUT AFTER 1 MINUTE INACTIVE (unless device is remembered) ---------------- */
+const INACTIVITY_MS = 60 * 1000; // 1 minute
+let inactivityTimer = null;
+let inactivityWatching = false;
+
+function isDeviceRemembered(){
+  return localStorage.getItem("symoh_remember_device") === "1";
+}
+function setDeviceRemembered(val){
+  localStorage.setItem("symoh_remember_device", val ? "1" : "0");
+  updateAutoSignoutBtn();
+  if (val) clearInactivityTimer(); else startInactivityWatch();
+}
+function updateAutoSignoutBtn(){
+  const btn = el("autosignout-toggle");
+  if (!btn) return;
+  btn.textContent = isDeviceRemembered() ? "🔓 Auto sign-out: Off" : "🔒 Auto sign-out: On";
+}
+el("autosignout-toggle")?.addEventListener("click", () => setDeviceRemembered(!isDeviceRemembered()));
+
+function resetInactivityTimer(){
+  if (!inactivityWatching || isDeviceRemembered()) return;
+  if (inactivityTimer) clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(async () => {
+    inactivityWatching = false;
+    await sb.auth.signOut();
+    location.reload();
+  }, INACTIVITY_MS);
+}
+function startInactivityWatch(){
+  if (isDeviceRemembered()){ inactivityWatching = false; return; }
+  inactivityWatching = true;
+  resetInactivityTimer();
+}
+function clearInactivityTimer(){
+  inactivityWatching = false;
+  if (inactivityTimer) clearTimeout(inactivityTimer);
+}
+["mousemove","mousedown","keydown","touchstart","scroll","click"].forEach((evt) => {
+  window.addEventListener(evt, resetInactivityTimer, { passive: true });
+});
+
+/* ---------------- TRASH (30-day retention) ---------------- */
+async function purgeOldTrash(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  await sb.from("posts").delete().eq("created_by", user.id).lt("deleted_at", cutoff);
+}
+
+async function openTrashModal(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const { data, error } = await sb.from("posts").select("*")
+    .eq("created_by", user.id)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending:false });
+  if (error){ alert("Couldn't load trash: " + error.message); return; }
+  renderTrashList(data || []);
+  el("trash-modal").classList.remove("hidden");
+}
+el("trash-btn")?.addEventListener("click", openTrashModal);
+el("trash-close")?.addEventListener("click", () => el("trash-modal").classList.add("hidden"));
+
+/* ---------------- BACKUP / EXPORT ---------------- */
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+function dateStamp(){
+  return new Date().toISOString().slice(0, 10);
+}
+function exportableFields(p){
+  const { password_hash, ...rest } = p;
+  return rest;
+}
+
+el("backup-btn")?.addEventListener("click", () => el("backup-modal").classList.remove("hidden"));
+el("backup-close")?.addEventListener("click", () => el("backup-modal").classList.add("hidden"));
+
+el("export-json-btn")?.addEventListener("click", () => {
+  const payload = JSON.stringify(allPosts.map(exportableFields), null, 2);
+  downloadBlob(new Blob([payload], { type: "application/json" }), `symoh-store-backup-${dateStamp()}.json`);
+});
+
+el("export-zip-btn")?.addEventListener("click", async () => {
+  if (typeof JSZip === "undefined"){ alert("Backup tool didn't load — check your connection and try again."); return; }
+  const progress = el("backup-progress");
+  progress.classList.remove("hidden");
+  progress.textContent = "Preparing backup…";
+  try{
+    const zip = new JSZip();
+    zip.file("manifest.json", JSON.stringify(allPosts.map(exportableFields), null, 2));
+    const filesFolder = zip.folder("files");
+    for (let i = 0; i < allPosts.length; i++){
+      const p = allPosts[i];
+      progress.textContent = `Packing ${i+1} of ${allPosts.length}…`;
+      if (p.source === "upload"){
+        try{
+          const res = await fetch(p.media_url);
+          if (res.ok){
+            const blob = await res.blob();
+            filesFolder.file(`${p.share_id}-${p.file_name || "file"}`, blob);
+          }
+        } catch(err){ console.warn("Skipping file that couldn't be fetched:", p.share_id, err); }
+      }
+    }
+    progress.textContent = "Zipping…";
+    const blob = await zip.generateAsync({ type: "blob" });
+    downloadBlob(blob, `symoh-store-backup-${dateStamp()}.zip`);
+  } catch(err){
+    alert("Backup failed: " + (err.message || err));
+  } finally {
+    progress.classList.add("hidden");
+  }
+});
+
+el("restore-btn")?.addEventListener("click", async () => {
+  const file = el("restore-input").files[0];
+  if (!file){ alert("Choose a .zip or .json backup file first."); return; }
+  if (!confirm("Restoring adds these parcels as new entries — it won't overwrite or merge with what's already here, and every restored link will use the password \"Techn\" until you change it. Continue?")) return;
+
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user){ alert("Session expired, please log in again."); return; }
+
+  const progress = el("backup-progress");
+  progress.classList.remove("hidden");
+  progress.textContent = "Reading backup…";
+
+  try{
+    let manifest = [];
+    let fileMap = {};
+
+    if (file.name.toLowerCase().endsWith(".zip")){
+      if (typeof JSZip === "undefined") throw new Error("Backup tool didn't load — check your connection.");
+      const zip = await JSZip.loadAsync(file);
+      const manifestEntry = zip.file("manifest.json");
+      if (!manifestEntry) throw new Error("This zip doesn't look like a Symoh Store backup (no manifest.json inside).");
+      manifest = JSON.parse(await manifestEntry.async("string"));
+      const fileEntries = zip.file(/^files\//);
+      for (const entry of fileEntries){
+        const name = entry.name.replace(/^files\//, "");
+        fileMap[name] = await entry.async("blob");
+      }
+    } else if (file.name.toLowerCase().endsWith(".json")){
+      manifest = JSON.parse(await file.text());
+    } else {
+      throw new Error("Choose a .zip or .json backup file.");
+    }
+
+    let imported = 0, skipped = 0;
+    for (let i = 0; i < manifest.length; i++){
+      const post = manifest[i];
+      progress.textContent = `Restoring ${i+1} of ${manifest.length}…`;
+      try{
+        if (post.source === "link"){
+          const { data, error } = await sb.from("posts").insert({
+            media_type: post.media_type, source: "link", media_url: post.media_url, file_name: null,
+            description: post.description, tags: post.tags || [], expires_at: post.expires_at, created_by: user.id
+          }).select().single();
+          if (error) throw error;
+          await sb.rpc("set_share_password", { p_post_id: data.id, p_password: "Techn" });
+          imported++;
+        } else if (post.source === "upload"){
+          const key = `${post.share_id}-${post.file_name || "file"}`;
+          const blob = fileMap[key];
+          if (!blob){ skipped++; continue; }
+          const restoredFile = new File([blob], post.file_name || "file", { type: blob.type });
+          const path = `${user.id}/${Date.now()}-${i}-${restoredFile.name}`;
+          const { error: upErr } = await sb.storage.from(BUCKET).upload(path, restoredFile);
+          if (upErr) throw upErr;
+          const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(path);
+          let thumb_url = null;
+          {
+            const thumbBlob = await makeThumbnailForFile(restoredFile, post.media_type);
+            if (thumbBlob){
+              const thumbPath = `${user.id}/thumb-${Date.now()}-${i}-${restoredFile.name}.jpg`;
+              const { error: thumbErr } = await sb.storage.from(BUCKET).upload(thumbPath, thumbBlob);
+              if (!thumbErr){
+                const { data: thumbPub } = sb.storage.from(BUCKET).getPublicUrl(thumbPath);
+                thumb_url = thumbPub.publicUrl;
+              }
+            }
+          }
+          const { data, error } = await sb.from("posts").insert({
+            media_type: post.media_type, source: "upload", media_url: pub.publicUrl, thumb_url,
+            file_name: post.file_name, file_size: restoredFile.size, description: post.description,
+            tags: post.tags || [], expires_at: post.expires_at, created_by: user.id
+          }).select().single();
+          if (error) throw error;
+          await sb.rpc("set_share_password", { p_post_id: data.id, p_password: "Techn" });
+          imported++;
+        } else {
+          skipped++;
+        }
+      } catch(err){
+        console.warn("Skipping a restore entry that failed:", err);
+        skipped++;
+      }
+    }
+
+    el("restore-input").value = "";
+    loadPosts();
+    alert(`Restore complete: ${imported} parcel${imported === 1 ? "" : "s"} added${skipped ? `, ${skipped} skipped (missing file data or unreadable entry)` : ""}.`);
+  } catch(err){
+    alert("Restore failed: " + (err.message || err));
+  } finally {
+    progress.classList.add("hidden");
+  }
+});
+
+function renderTrashList(items){
+  const list = el("trash-list");
+  if (!items.length){
+    list.innerHTML = `<div class="hint" style="margin:0;">Trash is empty.</div>`;
+    return;
+  }
+  list.innerHTML = items.map((p) => {
+    const deletedAt = new Date(p.deleted_at);
+    const daysLeft = Math.max(0, 30 - Math.floor((Date.now() - deletedAt.getTime()) / 86400000));
+    return `
+      <div class="trash-row">
+        <div class="trash-info">
+          <div class="trash-desc">${(p.description || "(no description)").replace(/</g,"&lt;")}</div>
+          <div class="trash-meta">${p.media_type.toUpperCase()} · ${daysLeft} day${daysLeft===1?"":"s"} left</div>
+        </div>
+        <button class="btn teal" data-restore="${p.id}">Restore</button>
+        <button class="btn stamp" data-purge="${p.id}">Delete forever</button>
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll("[data-restore]").forEach((b) => b.addEventListener("click", async () => {
+    const { error } = await sb.from("posts").update({ deleted_at: null }).eq("id", b.dataset.restore);
+    if (error){ alert("Restore failed: " + error.message); return; }
+    openTrashModal();
+    loadPosts();
+  }));
+  list.querySelectorAll("[data-purge]").forEach((b) => b.addEventListener("click", async () => {
+    if (!confirm("Permanently delete this parcel? This can't be undone.")) return;
+    const { error } = await sb.from("posts").delete().eq("id", b.dataset.purge);
+    if (error){ alert("Delete failed: " + error.message); return; }
+    openTrashModal();
+  }));
+}
+
+/* ---------------- INTAKE FORM STATE ---------------- */
+let selType = "image";
+let selSrc = "upload";
+let selectedFiles = [];
+
+document.querySelectorAll(".tab-btn").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".tab-btn").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  selType = b.dataset.type;
+}));
+document.querySelectorAll(".src-btn").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".src-btn").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  selSrc = b.dataset.src;
+  el("upload-field").classList.toggle("hidden", selSrc !== "upload");
+  el("link-field").classList.toggle("hidden", selSrc !== "link");
+}));
+
+el("new-parcel-btn").addEventListener("click", () => {
+  el("intake").classList.toggle("hidden");
+});
+el("cancel-intake").addEventListener("click", () => {
+  el("intake").classList.add("hidden");
+  resetIntake();
+});
+
+function resetIntake(){
+  el("file-input").value = "";
+  el("link-input").value = "";
+  el("desc-input").value = "";
+  el("tags-input").value = "";
+  el("expiry-select").value = "never";
+  el("share-password-input").value = "Techn";
+  el("share-code-input").value = "";
+  el("album-select").value = "";
+  el("compress-checkbox").checked = true;
+  el("progress-text").classList.add("hidden");
+  selectedFiles = [];
+  renderFileList();
+}
+
+function renderFileList(){
+  const list = el("file-list");
+  if (!selectedFiles.length){ list.innerHTML = ""; return; }
+  list.innerHTML = selectedFiles.map((f,i) => `
+    <span>${f.name}
+      <span>
+        ${selType === "image" && f.type.startsWith("image/") ? `<button type="button" data-edit-img="${i}" style="border:none;background:none;color:var(--teal);cursor:pointer;margin-right:8px;">✎ Edit</button>` : ""}
+        <button type="button" data-remove="${i}" style="border:none;background:none;color:var(--stamp);cursor:pointer;">✕</button>
+      </span>
+    </span>
+  `).join("");
+  list.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => {
+    selectedFiles.splice(Number(b.dataset.remove), 1);
+    renderFileList();
+  }));
+  list.querySelectorAll("[data-edit-img]").forEach(b => b.addEventListener("click", () => {
+    openImageEditor(Number(b.dataset.editImg));
+  }));
+}
+
+/* ---------------- IMAGE EDITOR (rotate + preset crop) ---------------- */
+let imageEditState = null; // { index, img, rotation }
+
+function openImageEditor(index){
+  const file = selectedFiles[index];
+  if (!file || !file.type.startsWith("image/")) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      imageEditState = { index, img, rotation: 0 };
+      drawEditCanvas();
+      el("image-edit-modal").classList.remove("hidden");
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function drawEditCanvas(cropAspect){
+  if (!imageEditState) return;
+  const { img, rotation } = imageEditState;
+  const swapped = rotation % 180 !== 0;
+  const w = swapped ? img.height : img.width;
+  const h = swapped ? img.width : img.height;
+
+  const off = document.createElement("canvas");
+  off.width = w; off.height = h;
+  const octx = off.getContext("2d");
+  octx.translate(w / 2, h / 2);
+  octx.rotate(rotation * Math.PI / 180);
+  octx.drawImage(img, -img.width / 2, -img.height / 2);
+
+  let sx = 0, sy = 0, sw = w, sh = h;
+  if (cropAspect){
+    const currentRatio = w / h;
+    if (currentRatio > cropAspect){ sw = h * cropAspect; sx = (w - sw) / 2; }
+    else { sh = w / cropAspect; sy = (h - sh) / 2; }
+  }
+
+  const canvas = el("edit-canvas");
+  canvas.width = sw; canvas.height = sh;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, sw, sh);
+  ctx.drawImage(off, sx, sy, sw, sh, 0, 0, sw, sh);
+}
+
+el("rotate-left-btn")?.addEventListener("click", () => {
+  imageEditState.rotation = (imageEditState.rotation - 90 + 360) % 360;
+  drawEditCanvas();
+});
+el("rotate-right-btn")?.addEventListener("click", () => {
+  imageEditState.rotation = (imageEditState.rotation + 90) % 360;
+  drawEditCanvas();
+});
+el("crop-square-btn")?.addEventListener("click", () => drawEditCanvas(1));
+el("crop-wide-btn")?.addEventListener("click", () => drawEditCanvas(16 / 9));
+el("crop-reset-btn")?.addEventListener("click", () => {
+  imageEditState.rotation = 0;
+  drawEditCanvas();
+});
+el("edit-image-cancel")?.addEventListener("click", () => el("image-edit-modal").classList.add("hidden"));
+el("edit-image-save")?.addEventListener("click", () => {
+  const canvas = el("edit-canvas");
+  canvas.toBlob((blob) => {
+    if (blob){
+      const original = selectedFiles[imageEditState.index];
+      selectedFiles[imageEditState.index] = new File([blob], original.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" });
+      renderFileList();
+    }
+    el("image-edit-modal").classList.add("hidden");
+  }, "image/jpeg", 0.9);
+});
+
+const dropzone = el("dropzone");
+const fileInput = el("file-input");
+dropzone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => {
+  selectedFiles = selectedFiles.concat(Array.from(fileInput.files));
+  fileInput.value = "";
+  renderFileList();
+});
+["dragenter","dragover"].forEach(evt => dropzone.addEventListener(evt, (e) => {
+  e.preventDefault(); dropzone.classList.add("drag-over");
+}));
+["dragleave","drop"].forEach(evt => dropzone.addEventListener(evt, (e) => {
+  e.preventDefault(); dropzone.classList.remove("drag-over");
+}));
+dropzone.addEventListener("drop", (e) => {
+  const dropped = Array.from(e.dataTransfer.files || []);
+  selectedFiles = selectedFiles.concat(dropped);
+  renderFileList();
+});
+
+/* ---------------- THUMBNAIL GENERATION ---------------- */
+function makeImageThumbnail(file){
+  return new Promise((resolve) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => { img.src = e.target.result; };
+    img.onload = () => {
+      const maxDim = 400;
+      let { width, height } = img;
+      if (width > height && width > maxDim){ height = height * (maxDim/width); width = maxDim; }
+      else if (height > maxDim){ width = width * (maxDim/height); height = maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.75);
+    };
+    img.onerror = () => resolve(null);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+function makeVideoThumbnail(file){
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+    const url = URL.createObjectURL(file);
+    video.src = url;
+
+    const cleanup = () => URL.revokeObjectURL(url);
+    const fail = () => { cleanup(); resolve(null); };
+
+    video.onloadedmetadata = () => {
+      const seekTo = Math.min(1, (video.duration || 1) * 0.1);
+      video.currentTime = seekTo;
+    };
+    video.onseeked = () => {
+      try{
+        const maxDim = 400;
+        let width = video.videoWidth, height = video.videoHeight;
+        if (!width || !height){ fail(); return; }
+        if (width > height && width > maxDim){ height = height * (maxDim/width); width = maxDim; }
+        else if (height > maxDim){ width = width * (maxDim/height); height = maxDim; }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(video, 0, 0, width, height);
+        canvas.toBlob((blob) => { cleanup(); resolve(blob); }, "image/jpeg", 0.75);
+      } catch(err){ fail(); }
+    };
+    video.onerror = fail;
+    setTimeout(fail, 8000); // don't hang forever on an odd file
+  });
+}
+
+function makeThumbnailForFile(file, mediaType){
+  if (mediaType === "image") return makeImageThumbnail(file);
+  if (mediaType === "video") return makeVideoThumbnail(file);
+  return Promise.resolve(null);
+}
+
+function compressImage(file, maxDim, quality){
+  maxDim = maxDim || 1920;
+  quality = quality || 0.82;
+  return new Promise((resolve) => {
+    if (!file.type.startsWith("image/") || file.type === "image/gif"){ resolve(file); return; }
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => { img.src = e.target.result; };
+    img.onload = () => {
+      let { width, height } = img;
+      if (width <= maxDim && height <= maxDim){ resolve(file); return; }
+      if (width > height){ height = height * (maxDim / width); width = maxDim; }
+      else { width = width * (maxDim / height); height = maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if (!blob){ resolve(file); return; }
+        resolve(new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }));
+      }, "image/jpeg", quality);
+    };
+    img.onerror = () => resolve(file);
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
+function sanitizeShareCode(raw){
+  return raw.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+}
+
+function expiryToDate(val){
+  if (val === "never") return null;
+  const days = Number(val);
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
+el("ship-btn").addEventListener("click", async () => {
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user){ alert("Session expired, please log in again."); return; }
+
+  const desc = el("desc-input").value.trim();
+  const tags = el("tags-input").value.split(",").map(t => t.trim()).filter(Boolean);
+  const expires_at = expiryToDate(el("expiry-select").value);
+  const sharePassword = el("share-password-input").value.trim() || "Techn";
+  const albumSel = el("album-select").value;
+  const album_id = (albumSel && albumSel !== "__new__") ? albumSel : null;
+  const customCode = sanitizeShareCode(el("share-code-input").value || "");
+  const compress = el("compress-checkbox").checked;
+  const progress = el("progress-text");
+
+  // Offline: queue this parcel in IndexedDB and ship it automatically once back online.
+  if (!navigator.onLine){
+    let queueItem;
+    if (selSrc === "upload"){
+      if (!selectedFiles.length){ alert("Choose at least one file, or switch to Paste a link."); return; }
+      queueItem = { media_type: selType, source: "upload", description: desc, tags, expires_at, password: sharePassword, album_id, shareCode: customCode || null, files: selectedFiles.slice() };
+    } else {
+      const link = el("link-input").value.trim();
+      if (!link){ alert("Paste a link, or switch to Upload from device."); return; }
+      queueItem = { media_type: selType, source: "link", description: desc, tags, expires_at, password: sharePassword, album_id, shareCode: customCode || null, link };
+    }
+    const newId = await addToOutbox(queueItem);
+    registerBackgroundSync();
+    el("intake").classList.add("hidden");
+    resetIntake();
+    await refreshPendingSection();
+    showUndoToast("Queued — will ship once you're back online.", async () => {
+      await deleteFromOutbox(newId);
+      refreshPendingSection();
+    });
+    return;
+  }
+
+  progress.classList.remove("hidden");
+
+  try{
+    let lastShareId = null;
+
+    if (selSrc === "upload"){
+      if (!selectedFiles.length){ alert("Choose at least one file, or switch to Paste a link."); progress.classList.add("hidden"); return; }
+      for (let i = 0; i < selectedFiles.length; i++){
+        let file = selectedFiles[i];
+        if (compress && selType === "image"){
+          progress.textContent = `Compressing ${i+1} of ${selectedFiles.length}…`;
+          file = await compressImage(file);
+        }
+        progress.textContent = `Uploading ${i+1} of ${selectedFiles.length}…`;
+        const path = `${user.id}/${Date.now()}-${i}-${file.name}`;
+        const { error: upErr } = await sb.storage.from(BUCKET).upload(path, file);
+        if (upErr) throw upErr;
+        const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(path);
+
+        let thumb_url = null;
+        const thumbBlob = await makeThumbnailForFile(file, selType);
+        if (thumbBlob){
+          const thumbPath = `${user.id}/thumb-${Date.now()}-${i}-${file.name}.jpg`;
+          const { error: thumbErr } = await sb.storage.from(BUCKET).upload(thumbPath, thumbBlob);
+          if (!thumbErr){
+            const { data: thumbPub } = sb.storage.from(BUCKET).getPublicUrl(thumbPath);
+            thumb_url = thumbPub.publicUrl;
+          }
+        }
+
+        progress.textContent = `Filing manifest ${i+1} of ${selectedFiles.length}…`;
+        const desiredShareId = customCode ? (selectedFiles.length > 1 ? `${customCode}-${i+1}` : customCode) : undefined;
+        const insertPayload = {
+          media_type: selType,
+          source: "upload",
+          media_url: pub.publicUrl,
+          thumb_url,
+          file_name: file.name,
+          file_size: file.size,
+          description: desc,
+          tags,
+          expires_at,
+          album_id,
+          created_by: user.id
+        };
+        if (desiredShareId) insertPayload.share_id = desiredShareId;
+        const { data, error } = await sb.from("posts").insert(insertPayload).select().single();
+        if (error){
+          if (error.code === "23505") throw new Error(`Share code "${desiredShareId}" is already taken — try a different one.`);
+          throw error;
+        }
+        await sb.rpc("set_share_password", { p_post_id: data.id, p_password: sharePassword });
+        lastShareId = data.share_id;
+      }
+    } else {
+      const link = el("link-input").value.trim();
+      if (!link){ alert("Paste a link, or switch to Upload from device."); progress.classList.add("hidden"); return; }
+      progress.textContent = "Filing the manifest…";
+      const insertPayload = {
+        media_type: selType,
+        source: "link",
+        media_url: link,
+        file_name: null,
+        description: desc,
+        tags,
+        expires_at,
+        album_id,
+        created_by: user.id
+      };
+      if (customCode) insertPayload.share_id = customCode;
+      const { data, error } = await sb.from("posts").insert(insertPayload).select().single();
+      if (error){
+        if (error.code === "23505") throw new Error(`Share code "${customCode}" is already taken — try a different one.`);
+        throw error;
+      }
+      await sb.rpc("set_share_password", { p_post_id: data.id, p_password: sharePassword });
+      lastShareId = data.share_id;
+    }
+
+    progress.classList.add("hidden");
+    el("intake").classList.add("hidden");
+    resetIntake();
+    openShipModal(lastShareId);
+    loadPosts();
+  } catch(err){
+    progress.classList.add("hidden");
+    alert("Shipping failed: " + (err.message || err));
+  }
+});
+
+/* ---------------- SHIP / SHARE MODAL ---------------- */
+function openShipModal(shareId, isExisting){
+  el("ship-title").textContent = isExisting ? "Share this parcel" : "Parcel shipped";
+  el("ship-code").textContent = shareId;
+  renderQr(el("ship-qr"), shareUrlFor(shareId));
+  el("copied-msg").textContent = "";
+  el("ship-modal").classList.remove("hidden");
+  el("copy-preview").onclick = () => copyLink(shareUrlFor(shareId), "Preview link copied.");
+  el("copy-share").onclick = () => copyLink(shareUrlFor(shareId), "Share link copied.");
+}
+el("close-modal").addEventListener("click", () => el("ship-modal").classList.add("hidden"));
+
+function copyLink(url, msg){
+  navigator.clipboard.writeText(url).then(() => {
+    el("copied-msg").textContent = msg;
+  }).catch(() => {
+    el("copied-msg").textContent = url;
+  });
+}
+
+/* ---------------- EDIT MODAL ---------------- */
+let editingId = null;
+function openEditModal(post){
+  editingId = post.id;
+  el("edit-desc").value = post.description || "";
+  el("edit-tags").value = (post.tags || []).join(", ");
+  el("edit-password").value = "";
+  el("edit-album-select").value = post.album_id || "";
+  el("edit-share-code").value = post.share_id || "";
+  el("edit-modal").classList.remove("hidden");
+}
+el("edit-album-select")?.addEventListener("change", (e) => {
+  if (e.target.value === "__new__") createAlbumFlow(e.target);
+});
+el("edit-cancel").addEventListener("click", () => el("edit-modal").classList.add("hidden"));
+el("edit-save").addEventListener("click", async () => {
+  const description = el("edit-desc").value.trim();
+  const tags = el("edit-tags").value.split(",").map(t => t.trim()).filter(Boolean);
+  const newPassword = el("edit-password").value;
+  const albumSel = el("edit-album-select").value;
+  const album_id = (albumSel && albumSel !== "__new__") ? albumSel : null;
+  const newShareCode = sanitizeShareCode(el("edit-share-code").value || "");
+
+  const updatePayload = { description, tags, album_id };
+  if (newShareCode) updatePayload.share_id = newShareCode;
+
+  const { error } = await sb.from("posts").update(updatePayload).eq("id", editingId);
+  if (error){
+    if (error.code === "23505"){ alert(`Share code "${newShareCode}" is already taken — pick a different one.`); return; }
+    alert("Update failed: " + error.message);
+    return;
+  }
+  if (newPassword.trim()){
+    const { error: pwErr } = await sb.rpc("set_share_password", { p_post_id: editingId, p_password: newPassword.trim() });
+    if (pwErr){ alert("Saved, but the password change failed: " + pwErr.message); }
+  }
+  el("edit-modal").classList.add("hidden");
+  loadPosts();
+});
+
+/* ---------------- TOAST / UNDO DELETE ---------------- */
+function showUndoToast(message, onUndo){
+  const existing = document.querySelector(".toast");
+  if (existing) existing.remove();
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.innerHTML = `<span>${message}</span><button>Undo</button>`;
+  toast.querySelector("button").addEventListener("click", () => { onUndo(); toast.remove(); });
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 6000);
+}
+
+/* ---------------- GRID / SEARCH / FILTER / SORT ---------------- */
+let allPosts = [];
+let userAlbums = [];
+let activeTypeFilter = "all";
+let activeAlbumFilter = "";
+let activeSort = "newest";
+let selectMode = false;
+let selectedIds = new Set();
+
+async function loadAlbums(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const { data, error } = await sb.from("albums").select("*").eq("created_by", user.id).order("name");
+  if (error){ console.error(error); return; }
+  userAlbums = data || [];
+  renderAlbumOptions();
+}
+
+function renderAlbumOptions(){
+  const filterSel = el("album-filter");
+  const intakeSel = el("album-select");
+  const editSel = el("edit-album-select");
+  const filterCurrent = filterSel.value;
+  const intakeCurrent = intakeSel.value;
+  const editCurrent = editSel ? editSel.value : "";
+
+  filterSel.innerHTML = `<option value="">All albums</option>` +
+    userAlbums.map(a => `<option value="${a.id}">${a.name.replace(/</g,"&lt;")}</option>`).join("");
+  filterSel.value = userAlbums.some(a => a.id === filterCurrent) ? filterCurrent : "";
+
+  intakeSel.innerHTML = `<option value="">No album</option>` +
+    userAlbums.map(a => `<option value="${a.id}">${a.name.replace(/</g,"&lt;")}</option>`).join("") +
+    `<option value="__new__">＋ New album…</option>`;
+  intakeSel.value = userAlbums.some(a => a.id === intakeCurrent) ? intakeCurrent : "";
+
+  if (editSel){
+    editSel.innerHTML = `<option value="">No album</option>` +
+      userAlbums.map(a => `<option value="${a.id}">${a.name.replace(/</g,"&lt;")}</option>`).join("") +
+      `<option value="__new__">＋ New album…</option>`;
+    editSel.value = userAlbums.some(a => a.id === editCurrent) ? editCurrent : "";
+  }
+}
+
+async function createAlbumFlow(selectEl){
+  const name = prompt("Name this album:");
+  if (!name || !name.trim()){ selectEl.value = ""; return; }
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  const { data, error } = await sb.from("albums").insert({ name: name.trim(), created_by: user.id }).select().single();
+  if (error){ alert("Couldn't create album: " + error.message); selectEl.value = ""; return; }
+  await loadAlbums();
+  selectEl.value = data.id;
+}
+
+el("album-select")?.addEventListener("change", (e) => {
+  if (e.target.value === "__new__") createAlbumFlow(e.target);
+});
+el("album-filter")?.addEventListener("change", (e) => {
+  activeAlbumFilter = e.target.value;
+  applyFiltersAndRender();
+});
+
+async function loadPosts(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const { data, error } = await sb.from("posts").select("*")
+    .eq("created_by", user.id)
+    .is("deleted_at", null)
+    .order("created_at", { ascending:false });
+  if (error){ console.error(error); return; }
+  allPosts = data || [];
+  renderStats();
+  applyFiltersAndRender();
+}
+
+function renderStats(){
+  const totalBytes = allPosts.reduce((sum,p) => sum + (p.file_size || 0), 0);
+  const last = allPosts[0];
+  el("stats-bar").innerHTML = `
+    <span><b>${allPosts.length}</b> parcels</span>
+    <span><b>${fmtBytes(totalBytes)}</b> used</span>
+    ${last ? `<span>last shipped <b>${new Date(last.created_at).toLocaleDateString()}</b></span>` : ""}
+  `;
+}
+
+document.querySelectorAll("#type-filter .pill").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("#type-filter .pill").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  activeTypeFilter = b.dataset.type;
+  applyFiltersAndRender();
+}));
+el("sort-select").addEventListener("change", (e) => {
+  activeSort = e.target.value;
+  applyFiltersAndRender();
+});
+el("search-input").addEventListener("input", applyFiltersAndRender);
+
+function albumNameFor(albumId){
+  const a = userAlbums.find(x => x.id === albumId);
+  return a ? a.name : null;
+}
+
+function applyFiltersAndRender(){
+  const q = el("search-input").value.trim().toLowerCase();
+  let posts = allPosts.filter(p => {
+    if (activeTypeFilter !== "all" && p.media_type !== activeTypeFilter) return false;
+    if (activeAlbumFilter && p.album_id !== activeAlbumFilter) return false;
+    if (!q) return true;
+    return (p.description || "").toLowerCase().includes(q) ||
+      (p.file_name || "").toLowerCase().includes(q) ||
+      p.share_id.toLowerCase().includes(q) ||
+      p.media_type.toLowerCase().includes(q) ||
+      (p.tags || []).some(t => t.toLowerCase().includes(q));
+  });
+  posts = posts.slice().sort((a,b) => {
+    if (activeSort === "oldest") return new Date(a.created_at) - new Date(b.created_at);
+    if (activeSort === "type") return a.media_type.localeCompare(b.media_type);
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+  renderGrid(posts);
+}
+
+function renderGrid(posts){
+  const grid = el("grid");
+  if (!posts.length){
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">No parcels match. Ship one above, or adjust your filters.</div>`;
+    return;
+  }
+  grid.innerHTML = posts.map(p => {
+    const expired = p.expires_at && new Date(p.expires_at) < new Date();
+    const albumName = p.album_id ? albumNameFor(p.album_id) : null;
+    return `
+    <div class="card">
+      ${selectMode ? `<input type="checkbox" class="select-check" data-select="${p.id}" ${selectedIds.has(p.id) ? "checked" : ""} />` : ""}
+      <div class="card-media">${mediaMarkup(p, false)}</div>
+      <div class="stamp-tag">${p.media_type.toUpperCase()}</div>
+      ${expired ? `<div class="expired-tag">EXPIRED</div>` : ""}
+      <div class="card-body">
+        <div class="card-desc">${(p.description || "(no description)").replace(/</g,"&lt;")}</div>
+        ${albumName ? `<div class="tag-pill" style="align-self:flex-start;">📁 ${albumName.replace(/</g,"&lt;")}</div>` : ""}
+        <div class="tag-pills">${(p.tags||[]).map(t=>`<span class="tag-pill">${t.replace(/</g,"&lt;")}</span>`).join("")}</div>
+        <div class="card-meta"><span class="mono">#${p.share_id}</span><span>${new Date(p.created_at).toLocaleDateString()}</span></div>
+        <div class="card-meta"><span>👁 ${p.view_count || 0} view${p.view_count === 1 ? "" : "s"}</span><span>${p.last_viewed_at ? "last " + new Date(p.last_viewed_at).toLocaleDateString() : "never viewed"}</span></div>
+        <div class="card-actions">
+          <button class="btn ghost" data-preview="${p.share_id}">Preview</button>
+          <button class="btn teal" data-share="${p.share_id}">Share</button>
+          <button class="btn ghost" data-download="${p.id}">⬇ Download</button>
+          <button class="btn ghost" data-edit="${p.id}">Edit</button>
+          <button class="btn stamp" data-del="${p.id}">Delete</button>
+        </div>
+      </div>
+    </div>
+  `;
+  }).join("");
+
+  grid.querySelectorAll("[data-preview]").forEach(b => b.addEventListener("click", () => {
+    window.open(shareUrlFor(b.dataset.preview), "_blank");
+  }));
+  grid.querySelectorAll("[data-share]").forEach(b => b.addEventListener("click", () => {
+    openShipModal(b.dataset.share, true);
+  }));
+  grid.querySelectorAll("[data-download]").forEach(b => b.addEventListener("click", () => {
+    const post = allPosts.find(p => p.id === b.dataset.download);
+    if (!post) return;
+    forceDownload(post.media_url, post.file_name || post.share_id, b);
+  }));
+  grid.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => {
+    const post = allPosts.find(p => p.id === b.dataset.edit);
+    if (post) openEditModal(post);
+  }));
+  grid.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
+    const id = b.dataset.del;
+    const { error } = await sb.from("posts").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    if (error){ alert("Delete failed: " + error.message); return; }
+    loadPosts();
+    showUndoToast("Parcel deleted.", async () => {
+      await sb.from("posts").update({ deleted_at: null }).eq("id", id);
+      loadPosts();
+    });
+  }));
+  grid.querySelectorAll("[data-select]").forEach(cb => cb.addEventListener("change", () => {
+    const id = cb.dataset.select;
+    if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+    updateBulkBar();
+  }));
+}
+
+/* ---------------- BULK SELECT ---------------- */
+el("select-toggle").addEventListener("click", () => {
+  selectMode = !selectMode;
+  el("select-toggle").textContent = selectMode ? "Cancel" : "Select";
+  if (!selectMode){ selectedIds.clear(); }
+  updateBulkBar();
+  applyFiltersAndRender();
+});
+function updateBulkBar(){
+  const bar = el("bulk-bar");
+  bar.classList.toggle("show", selectMode && selectedIds.size > 0);
+  el("bulk-count").textContent = `${selectedIds.size} selected`;
+}
+el("bulk-delete").addEventListener("click", async () => {
+  if (!selectedIds.size) return;
+  if (!confirm(`Delete ${selectedIds.size} parcel(s)?`)) return;
+  const ids = Array.from(selectedIds);
+  const { error } = await sb.from("posts").update({ deleted_at: new Date().toISOString() }).in("id", ids);
+  if (error){ alert("Delete failed: " + error.message); return; }
+  selectedIds.clear();
+  selectMode = false;
+  el("select-toggle").textContent = "Select";
+  updateBulkBar();
+  loadPosts();
+  showUndoToast(`${ids.length} parcels deleted.`, async () => {
+    await sb.from("posts").update({ deleted_at: null }).in("id", ids);
+    loadPosts();
+  });
+});
+
+/* ---------------- BOOT ---------------- */
+(async function boot(){
+  const itemParam = params.get("item");
+  if (itemParam){
+    initPublicView(itemParam);
+    return;
+  }
+  const { data } = await sb.auth.getSession();
+  if (data?.session){
+    showApp();
+  }
+})();
+</script>
+</body>
+</html>

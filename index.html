@@ -360,12 +360,17 @@
       <input id="search-input" placeholder="Search the manifest…" />
     </div>
     <button class="btn teal" id="new-parcel-btn">＋ New Parcel</button>
-    <button class="icon-btn hidden" id="install-btn" title="Install Symoh Store">⬇ Install</button>
-    <button class="icon-btn" id="theme-toggle" title="Toggle dark mode">🌙</button>
     <button class="btn ghost" id="select-toggle">Select</button>
-    <button class="btn ghost" id="trash-btn">🗑 Trash</button>
-    <button class="btn ghost" id="backup-btn">⬇ Backup</button>
-    <button class="icon-btn" id="autosignout-toggle" title="Toggle auto sign-out">🔒 Auto sign-out: On</button>
+    <div style="position:relative;">
+      <button class="icon-btn" id="more-menu-btn" title="More">⋯ More</button>
+      <div id="more-menu" class="hidden" style="position:absolute; right:0; top:calc(100% + 6px); background:var(--tag); border:2px solid var(--ink); border-radius:4px; box-shadow:var(--shadow); z-index:40; min-width:210px; display:flex; flex-direction:column; gap:4px; padding:8px;">
+        <button class="btn ghost" id="theme-toggle" style="justify-content:flex-start;">🌙 Dark mode</button>
+        <button class="btn ghost" id="trash-btn" style="justify-content:flex-start;">🗑 Trash</button>
+        <button class="btn ghost" id="backup-btn" style="justify-content:flex-start;">⬇ Backup</button>
+        <button class="btn ghost" id="autosignout-toggle" style="justify-content:flex-start;">🔒 Auto sign-out: On</button>
+        <button class="btn ghost hidden" id="install-btn" style="justify-content:flex-start;">⬇ Install app</button>
+      </div>
+    </div>
     <button class="btn ghost" id="signout-btn">Sign out</button>
   </div>
 
@@ -825,6 +830,22 @@ function pendingCardMarkup(item){
     </div>
   `;
 }
+
+/* ---------------- OVERFLOW "MORE" MENU ---------------- */
+el("more-menu-btn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  el("more-menu").classList.toggle("hidden");
+});
+document.addEventListener("click", (e) => {
+  const menu = el("more-menu");
+  if (!menu || menu.classList.contains("hidden")) return;
+  if (!menu.contains(e.target) && e.target !== el("more-menu-btn")){
+    menu.classList.add("hidden");
+  }
+});
+el("more-menu")?.querySelectorAll("button").forEach((b) => {
+  b.addEventListener("click", () => el("more-menu").classList.add("hidden"));
+});
 
 /* ---------------- THEME ---------------- */
 (function initTheme(){

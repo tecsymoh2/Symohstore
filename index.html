@@ -367,6 +367,7 @@
         <button class="btn ghost" id="theme-toggle" style="justify-content:flex-start;">🌙 Dark mode</button>
         <button class="btn ghost" id="trash-btn" style="justify-content:flex-start;">🗑 Trash</button>
         <button class="btn ghost" id="backup-btn" style="justify-content:flex-start;">⬇ Backup</button>
+        <button class="btn ghost" id="manage-albums-btn" style="justify-content:flex-start;">📁 Manage albums</button>
         <button class="btn ghost" id="autosignout-toggle" style="justify-content:flex-start;">🔒 Auto sign-out: On</button>
         <button class="btn ghost hidden" id="install-btn" style="justify-content:flex-start;">⬇ Install app</button>
       </div>
@@ -375,12 +376,22 @@
   </div>
 
   <div class="offline-banner hidden" id="offline-banner">📡 You're offline — showing your last synced parcels. New uploads are queued and will ship automatically once you're back online.</div>
+  <div class="offline-banner hidden" id="backup-reminder-banner" style="background:var(--teal);"></div>
 
   <div class="stats-bar" id="stats-bar"></div>
 
   <div class="bulk-bar" id="bulk-bar">
     <span id="bulk-count">0 selected</span>
-    <button class="btn stamp sm" id="bulk-delete">Delete selected</button>
+    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+      <button class="btn ghost sm" id="bulk-tag" style="color:#fff; border-color:#fff;">＋ Tag</button>
+      <select id="bulk-album-select" style="border:1.5px solid #fff; border-radius:3px; padding:6px 8px; background:transparent; color:#fff; font-size:11px;">
+        <option value="">📁 Assign to album…</option>
+        <option value="__remove__">Remove from album</option>
+        <option value="__new__">＋ New album…</option>
+      </select>
+      <button class="btn ghost sm" id="bulk-zip" style="color:#fff; border-color:#fff;">⬇ Zip</button>
+      <button class="btn stamp sm" id="bulk-delete">Delete</button>
+    </div>
   </div>
 
   <div class="filter-bar">
@@ -474,6 +485,9 @@
 
   <div class="section-title">Manifest</div>
   <div id="grid" class="grid"></div>
+  <div style="text-align:center; margin-top:18px;">
+    <button class="btn ghost hidden" id="load-more-btn">Load older parcels</button>
+  </div>
 </div>
 
 <!-- ================= SHIP / SHARE MODAL ================= -->
@@ -543,6 +557,25 @@
       <button type="button" class="btn ghost" id="edit-image-cancel">Cancel</button>
       <button type="button" class="btn stamp" id="edit-image-save">Apply</button>
     </div>
+  </div>
+</div>
+
+<!-- ================= MANAGE ALBUMS MODAL ================= -->
+<div id="albums-modal" class="modal-back hidden">
+  <div class="modal" style="text-align:left; max-width:440px;">
+    <div class="display" style="font-size:18px; text-align:center;">Manage albums</div>
+    <div id="albums-list" style="display:flex; flex-direction:column; gap:8px; margin:16px 0; max-height:50vh; overflow:auto;"></div>
+    <button type="button" class="btn ghost block" id="albums-close">Close</button>
+  </div>
+</div>
+
+<!-- ================= VIEW LOG MODAL ================= -->
+<div id="viewlog-modal" class="modal-back hidden">
+  <div class="modal" style="text-align:left; max-width:400px;">
+    <div class="display" style="font-size:18px; text-align:center;">View log</div>
+    <div class="hint" style="margin-top:6px; text-align:center;">Every time this share link was successfully unlocked.</div>
+    <div id="viewlog-list" style="display:flex; flex-direction:column; gap:6px; margin:16px 0; max-height:50vh; overflow:auto;"></div>
+    <button type="button" class="btn ghost block" id="viewlog-close">Close</button>
   </div>
 </div>
 
@@ -890,15 +923,33 @@ async function forceDownload(url, filename, btn){
   }
 }
 
-/* ---------------- PUBLIC SINGLE ITEM VIEW (password gated) ---------------- */
+/* ---------------- PUBLIC SINGLE ITEM VIEW (password gated, unless owner is already logged in) ---------------- */
 let pendingShareId = null;
 
-function initPublicView(shareId){
+async function initPublicView(shareId){
   el("login-screen").classList.add("hidden");
   el("app-screen").classList.add("hidden");
   el("pub-screen").classList.remove("hidden");
   el("pub-home").href = baseUrl();
   pendingShareId = shareId;
+
+  // Owner bypass: if this browser is already logged in as the parcel's owner, skip the password gate.
+  const { data: sessionData } = await sb.auth.getSession();
+  if (sessionData?.session){
+    const { data: userData } = await sb.auth.getUser();
+    const user = userData?.user;
+    if (user){
+      const { data: ownPost } = await sb.from("posts").select("*")
+        .eq("share_id", shareId)
+        .eq("created_by", user.id)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (ownPost){
+        renderPublicContent(ownPost, true);
+        return;
+      }
+    }
+  }
 }
 
 el("pub-gate-form")?.addEventListener("submit", async (e) => {
@@ -941,10 +992,10 @@ el("pub-gate-form")?.addEventListener("submit", async (e) => {
   }
 });
 
-function renderPublicContent(data){
+function renderPublicContent(data, ownerPreview){
   el("pub-gate").classList.add("hidden");
   el("pub-content").classList.remove("hidden");
-  el("pub-type").textContent = data.media_type.toUpperCase();
+  el("pub-type").textContent = data.media_type.toUpperCase() + (ownerPreview ? " · OWNER PREVIEW (no password needed, not counted as a view)" : "");
   el("pub-desc").textContent = data.description || "(no description)";
   el("pub-meta").innerHTML = `<span>${data.file_name || data.source}</span><span>${new Date(data.created_at).toLocaleDateString()}</span>`;
   el("pub-tags").innerHTML = (data.tags || []).map(t => `<span class="tag-pill">${t}</span>`).join("");
@@ -1123,6 +1174,7 @@ el("backup-close")?.addEventListener("click", () => el("backup-modal").classList
 el("export-json-btn")?.addEventListener("click", () => {
   const payload = JSON.stringify(allPosts.map(exportableFields), null, 2);
   downloadBlob(new Blob([payload], { type: "application/json" }), `symoh-store-backup-${dateStamp()}.json`);
+  markBackupDone();
 });
 
 el("export-zip-btn")?.addEventListener("click", async () => {
@@ -1150,12 +1202,36 @@ el("export-zip-btn")?.addEventListener("click", async () => {
     progress.textContent = "Zipping…";
     const blob = await zip.generateAsync({ type: "blob" });
     downloadBlob(blob, `symoh-store-backup-${dateStamp()}.zip`);
+    markBackupDone();
   } catch(err){
     alert("Backup failed: " + (err.message || err));
   } finally {
     progress.classList.add("hidden");
   }
 });
+
+/* ---------------- Backup reminder ---------------- */
+const BACKUP_REMINDER_DAYS = 14;
+function markBackupDone(){
+  localStorage.setItem("symoh_last_backup", new Date().toISOString());
+  el("backup-reminder-banner")?.classList.add("hidden");
+}
+function checkBackupReminder(){
+  const banner = el("backup-reminder-banner");
+  if (!banner) return;
+  const last = localStorage.getItem("symoh_last_backup");
+  const daysSince = last ? Math.floor((Date.now() - new Date(last).getTime()) / 86400000) : Infinity;
+  if (daysSince >= BACKUP_REMINDER_DAYS && allPosts.length){
+    banner.innerHTML = `💾 ${last ? `It's been ${daysSince} days since your last backup` : "You've never backed up"} — <a href="#" id="backup-reminder-link" style="color:inherit; text-decoration:underline;">back up now</a>.`;
+    banner.classList.remove("hidden");
+    el("backup-reminder-link")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      el("backup-modal").classList.remove("hidden");
+    });
+  } else {
+    banner.classList.add("hidden");
+  }
+}
 
 el("restore-btn")?.addEventListener("click", async () => {
   const file = el("restore-input").files[0];
@@ -1785,6 +1861,15 @@ function renderAlbumOptions(){
       `<option value="__new__">＋ New album…</option>`;
     editSel.value = userAlbums.some(a => a.id === editCurrent) ? editCurrent : "";
   }
+
+  const bulkSel = el("bulk-album-select");
+  if (bulkSel){
+    bulkSel.innerHTML = `<option value="">📁 Assign to album…</option>` +
+      userAlbums.map(a => `<option value="${a.id}">${a.name.replace(/</g,"&lt;")}</option>`).join("") +
+      `<option value="__remove__">Remove from album</option>` +
+      `<option value="__new__">＋ New album…</option>`;
+    bulkSel.value = "";
+  }
 }
 
 async function createAlbumFlow(selectEl){
@@ -1798,6 +1883,71 @@ async function createAlbumFlow(selectEl){
   selectEl.value = data.id;
 }
 
+/* ---------------- VIEW LOG MODAL ---------------- */
+el("viewlog-close")?.addEventListener("click", () => el("viewlog-modal").classList.add("hidden"));
+
+async function openViewLog(postId){
+  const { data, error } = await sb.from("share_views").select("viewed_at")
+    .eq("post_id", postId)
+    .order("viewed_at", { ascending: false })
+    .limit(200);
+  const list = el("viewlog-list");
+  if (error){
+    list.innerHTML = `<div class="hint" style="margin:0;">Couldn't load the view log.</div>`;
+  } else if (!data.length){
+    list.innerHTML = `<div class="hint" style="margin:0;">Never viewed yet.</div>`;
+  } else {
+    list.innerHTML = data.map(v => `<div class="trash-row"><div class="trash-info mono" style="font-size:11.5px;">${new Date(v.viewed_at).toLocaleString()}</div></div>`).join("");
+  }
+  el("viewlog-modal").classList.remove("hidden");
+}
+
+/* ---------------- MANAGE ALBUMS MODAL ---------------- */
+el("manage-albums-btn")?.addEventListener("click", () => {
+  renderAlbumsManageList();
+  el("albums-modal").classList.remove("hidden");
+});
+el("albums-close")?.addEventListener("click", () => el("albums-modal").classList.add("hidden"));
+
+function renderAlbumsManageList(){
+  const list = el("albums-list");
+  if (!userAlbums.length){
+    list.innerHTML = `<div class="hint" style="margin:0;">No albums yet — create one from the intake form.</div>`;
+    return;
+  }
+  list.innerHTML = userAlbums.map(a => `
+    <div class="trash-row">
+      <div class="trash-info">
+        <div class="trash-desc">${a.name.replace(/</g,"&lt;")}</div>
+        <div class="trash-meta">${allPosts.filter(p => p.album_id === a.id).length} parcel(s)</div>
+      </div>
+      <button class="btn teal" data-rename-album="${a.id}">Rename</button>
+      <button class="btn stamp" data-delete-album="${a.id}">Delete</button>
+    </div>
+  `).join("");
+
+  list.querySelectorAll("[data-rename-album]").forEach(b => b.addEventListener("click", async () => {
+    const album = userAlbums.find(a => a.id === b.dataset.renameAlbum);
+    const newName = prompt("Rename album:", album.name);
+    if (!newName || !newName.trim() || newName.trim() === album.name) return;
+    const { error } = await sb.from("albums").update({ name: newName.trim() }).eq("id", album.id);
+    if (error){ alert("Rename failed: " + error.message); return; }
+    await loadAlbums();
+    renderAlbumsManageList();
+    applyFiltersAndRender();
+  }));
+  list.querySelectorAll("[data-delete-album]").forEach(b => b.addEventListener("click", async () => {
+    const album = userAlbums.find(a => a.id === b.dataset.deleteAlbum);
+    const count = allPosts.filter(p => p.album_id === album.id).length;
+    if (!confirm(`Delete album "${album.name}"? ${count} parcel(s) inside will keep their content but lose the album tag.`)) return;
+    const { error } = await sb.from("albums").delete().eq("id", album.id);
+    if (error){ alert("Delete failed: " + error.message); return; }
+    await loadAlbums();
+    renderAlbumsManageList();
+    loadPosts();
+  }));
+}
+
 el("album-select")?.addEventListener("change", (e) => {
   if (e.target.value === "__new__") createAlbumFlow(e.target);
 });
@@ -1806,6 +1956,9 @@ el("album-filter")?.addEventListener("change", (e) => {
   applyFiltersAndRender();
 });
 
+const PAGE_SIZE = 60;
+let hasMorePosts = false;
+
 async function loadPosts(){
   const { data: userData } = await sb.auth.getUser();
   const user = userData?.user;
@@ -1813,9 +1966,29 @@ async function loadPosts(){
   const { data, error } = await sb.from("posts").select("*")
     .eq("created_by", user.id)
     .is("deleted_at", null)
-    .order("created_at", { ascending:false });
+    .order("created_at", { ascending:false })
+    .range(0, PAGE_SIZE - 1);
   if (error){ console.error(error); return; }
   allPosts = data || [];
+  hasMorePosts = allPosts.length === PAGE_SIZE;
+  renderStats();
+  checkBackupReminder();
+  applyFiltersAndRender();
+}
+
+async function loadMorePosts(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const { data, error } = await sb.from("posts").select("*")
+    .eq("created_by", user.id)
+    .is("deleted_at", null)
+    .order("created_at", { ascending:false })
+    .range(allPosts.length, allPosts.length + PAGE_SIZE - 1);
+  if (error){ console.error(error); return; }
+  const more = data || [];
+  allPosts = allPosts.concat(more);
+  hasMorePosts = more.length === PAGE_SIZE;
   renderStats();
   applyFiltersAndRender();
 }
@@ -1824,7 +1997,7 @@ function renderStats(){
   const totalBytes = allPosts.reduce((sum,p) => sum + (p.file_size || 0), 0);
   const last = allPosts[0];
   el("stats-bar").innerHTML = `
-    <span><b>${allPosts.length}</b> parcels</span>
+    <span><b>${allPosts.length}${hasMorePosts ? "+" : ""}</b> parcels loaded</span>
     <span><b>${fmtBytes(totalBytes)}</b> used</span>
     ${last ? `<span>last shipped <b>${new Date(last.created_at).toLocaleDateString()}</b></span>` : ""}
   `;
@@ -1841,6 +2014,12 @@ el("sort-select").addEventListener("change", (e) => {
   applyFiltersAndRender();
 });
 el("search-input").addEventListener("input", applyFiltersAndRender);
+el("load-more-btn")?.addEventListener("click", async () => {
+  const btn = el("load-more-btn");
+  btn.disabled = true; btn.textContent = "Loading…";
+  await loadMorePosts();
+  btn.disabled = false; btn.textContent = "Load older parcels";
+});
 
 function albumNameFor(albumId){
   const a = userAlbums.find(x => x.id === albumId);
@@ -1865,6 +2044,10 @@ function applyFiltersAndRender(){
     return new Date(b.created_at) - new Date(a.created_at);
   });
   renderGrid(posts);
+
+  const loadMoreBtn = el("load-more-btn");
+  const filtersActive = q || activeTypeFilter !== "all" || activeAlbumFilter;
+  loadMoreBtn.classList.toggle("hidden", !hasMorePosts || filtersActive);
 }
 
 function renderGrid(posts){
@@ -1887,7 +2070,7 @@ function renderGrid(posts){
         ${albumName ? `<div class="tag-pill" style="align-self:flex-start;">📁 ${albumName.replace(/</g,"&lt;")}</div>` : ""}
         <div class="tag-pills">${(p.tags||[]).map(t=>`<span class="tag-pill">${t.replace(/</g,"&lt;")}</span>`).join("")}</div>
         <div class="card-meta"><span class="mono">#${p.share_id}</span><span>${new Date(p.created_at).toLocaleDateString()}</span></div>
-        <div class="card-meta"><span>👁 ${p.view_count || 0} view${p.view_count === 1 ? "" : "s"}</span><span>${p.last_viewed_at ? "last " + new Date(p.last_viewed_at).toLocaleDateString() : "never viewed"}</span></div>
+        <div class="card-meta"><button data-viewlog="${p.id}" style="background:none;border:none;color:inherit;font-size:10px;cursor:pointer;padding:0;font-family:inherit;">👁 ${p.view_count || 0} view${p.view_count === 1 ? "" : "s"}</button><span>${p.last_viewed_at ? "last " + new Date(p.last_viewed_at).toLocaleDateString() : "never viewed"}</span></div>
         <div class="card-actions">
           <button class="btn ghost" data-preview="${p.share_id}">Preview</button>
           <button class="btn teal" data-share="${p.share_id}">Share</button>
@@ -1915,6 +2098,7 @@ function renderGrid(posts){
     const post = allPosts.find(p => p.id === b.dataset.edit);
     if (post) openEditModal(post);
   }));
+  grid.querySelectorAll("[data-viewlog]").forEach(b => b.addEventListener("click", () => openViewLog(b.dataset.viewlog)));
   grid.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
     const id = b.dataset.del;
     const { error } = await sb.from("posts").update({ deleted_at: new Date().toISOString() }).eq("id", id);
@@ -1960,6 +2144,82 @@ el("bulk-delete").addEventListener("click", async () => {
     await sb.from("posts").update({ deleted_at: null }).in("id", ids);
     loadPosts();
   });
+});
+
+el("bulk-tag")?.addEventListener("click", async () => {
+  if (!selectedIds.size) return;
+  const newTag = prompt(`Add a tag to ${selectedIds.size} selected parcel(s):`);
+  if (!newTag || !newTag.trim()) return;
+  const tag = newTag.trim();
+  const ids = Array.from(selectedIds);
+  try{
+    for (const id of ids){
+      const post = allPosts.find(p => p.id === id);
+      if (!post) continue;
+      const tags = Array.from(new Set([...(post.tags || []), tag]));
+      const { error } = await sb.from("posts").update({ tags }).eq("id", id);
+      if (error) throw error;
+    }
+    loadPosts();
+  } catch(err){
+    alert("Tagging failed: " + (err.message || err));
+  }
+});
+
+el("bulk-album-select")?.addEventListener("change", async (e) => {
+  const value = e.target.value;
+  if (!value || !selectedIds.size){ e.target.value = ""; return; }
+  const ids = Array.from(selectedIds);
+
+  if (value === "__new__"){
+    await createAlbumFlow(e.target);
+    const chosen = e.target.value;
+    if (!chosen || chosen === "__new__"){ e.target.value = ""; return; }
+    const { error } = await sb.from("posts").update({ album_id: chosen }).in("id", ids);
+    if (error){ alert("Album assignment failed: " + error.message); }
+    loadPosts();
+    e.target.value = "";
+    return;
+  }
+
+  const album_id = value === "__remove__" ? null : value;
+  const { error } = await sb.from("posts").update({ album_id }).in("id", ids);
+  if (error){ alert("Album assignment failed: " + error.message); }
+  loadPosts();
+  e.target.value = "";
+});
+
+el("bulk-zip")?.addEventListener("click", async () => {
+  if (!selectedIds.size) return;
+  if (typeof JSZip === "undefined"){ alert("Zip tool didn't load — check your connection and try again."); return; }
+  const ids = Array.from(selectedIds);
+  const posts = allPosts.filter(p => ids.includes(p.id));
+  const btn = el("bulk-zip");
+  const original = btn.textContent;
+  btn.disabled = true;
+  try{
+    const zip = new JSZip();
+    for (let i = 0; i < posts.length; i++){
+      const p = posts[i];
+      btn.textContent = `Zipping ${i+1}/${posts.length}…`;
+      if (p.source === "upload"){
+        try{
+          const res = await fetch(p.media_url);
+          if (res.ok){
+            const blob = await res.blob();
+            zip.file(`${p.share_id}-${p.file_name || "file"}`, blob);
+          }
+        } catch(err){ console.warn("Skipping file that couldn't be fetched:", p.share_id, err); }
+      }
+    }
+    const blob = await zip.generateAsync({ type: "blob" });
+    downloadBlob(blob, `symoh-store-selected-${dateStamp()}.zip`);
+  } catch(err){
+    alert("Zip failed: " + (err.message || err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
 });
 
 /* ---------------- BOOT ---------------- */

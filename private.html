@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Private — Symoh Store</title>
 <meta name="robots" content="noindex, nofollow" />
+<link rel="manifest" href="private-manifest.webmanifest">
+<meta name="theme-color" content="#3a2f22">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Private">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -31,23 +39,31 @@
   .field label{display:block; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:#b8ab8c; margin-bottom:6px;}
   .field input, .field textarea{width:100%; padding:11px 12px; border:1.5px solid var(--tag); border-radius:3px; background:var(--surface); color:var(--tag);}
   .field textarea{resize:vertical; min-height:60px;}
+  .field input[type=file]{padding:8px;}
   .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; border:2px solid var(--tag); border-radius:3px; padding:11px 18px; background:var(--tag); color:var(--ink); font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:0.08em; font-size:13px;}
   .btn.block{width:100%;}
   .btn.stamp{background:var(--stamp); border-color:var(--stamp); color:#fff;}
   .btn.ghost{background:transparent; color:var(--tag);}
+  .btn.sm{padding:6px 10px; font-size:11px;}
   .btn:disabled{opacity:0.6;}
   .err{color:#ff8a75; font-size:12.5px; margin-top:10px; text-align:center;}
+  .hint{font-size:11px; color:#b8ab8c; line-height:1.5;}
 
   .app{max-width:900px; margin:0 auto; padding:18px 16px 60px;}
-  .topbar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--crate); border:2px solid var(--tag); border-radius:4px; padding:14px 16px; margin-bottom:20px; box-shadow:var(--shadow);}
-  .brand{font-size:19px;}
+  .topbar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--crate); border:2px solid var(--tag); border-radius:4px; padding:14px 16px; margin-bottom:16px; box-shadow:var(--shadow);}
+  .brand{font-size:19px; white-space:nowrap;}
   .brand span{color:var(--stamp);}
-  .topbar .btn{margin-left:auto; padding:9px 14px; font-size:12px;}
+  .search-wrap{flex:1; min-width:140px; display:flex; align-items:center; gap:8px; background:var(--surface); border:1.5px solid var(--tag); border-radius:3px; padding:8px 10px;}
+  .search-wrap input{flex:1; border:none; background:transparent; color:var(--tag);}
+  .search-wrap input:focus{outline:none;}
+  .topbar .btn{padding:9px 14px; font-size:12px;}
 
   .intake{background:var(--crate); border:2px solid var(--tag); border-radius:4px; padding:18px; margin-bottom:24px; box-shadow:var(--shadow);}
   .section-title{font-size:13px; letter-spacing:0.14em; color:#b8ab8c; margin-bottom:12px;}
   .intake-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:12px;}
   .progress{font-size:12px; color:#b8ab8c; margin-top:8px;}
+  .file-list{display:flex; flex-direction:column; gap:4px; margin-top:8px; font-size:11.5px;}
+  .file-list span{display:flex; justify-content:space-between; background:var(--surface); padding:4px 8px; border-radius:3px;}
 
   .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px;}
   .card{background:var(--crate); border:2px solid var(--tag); border-radius:4px; overflow:hidden; box-shadow:var(--shadow); display:flex; flex-direction:column;}
@@ -56,9 +72,19 @@
   .card-body{padding:12px; display:flex; flex-direction:column; gap:8px; flex:1;}
   .card-desc{font-size:13px; line-height:1.4; flex:1;}
   .card-meta{font-size:10px; color:#b8ab8c; border-top:1px dashed var(--line); padding-top:6px; display:flex; justify-content:space-between;}
-  .card-actions{display:flex; gap:6px;}
-  .card-actions .btn{flex:1; padding:7px 6px; font-size:10.5px;}
+  .card-actions{display:flex; gap:6px; flex-wrap:wrap;}
+  .card-actions .btn{flex:1; padding:7px 6px; font-size:10.5px; min-width:60px;}
   .empty{text-align:center; padding:40px 16px; color:#b8ab8c; border:2px dashed var(--line); border-radius:4px;}
+
+  .modal-back{position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50;}
+  .modal{background:var(--crate); border:2px solid var(--tag); border-radius:4px; max-width:460px; width:100%; padding:22px; box-shadow:var(--shadow); text-align:left; max-height:85vh; overflow:auto;}
+  .trash-row{display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:8px 10px; font-size:12px;}
+  .trash-row .trash-info{flex:1; min-width:0;}
+  .trash-row .trash-desc{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .trash-row .trash-meta{color:#b8ab8c; font-size:10.5px;}
+  .trash-row .btn{padding:6px 9px; font-size:10px;}
+  .tag-pills{display:flex; flex-wrap:wrap; gap:4px;}
+  .tag-pill{font-size:9.5px; padding:2px 7px; border-radius:10px; background:var(--surface); border:1px solid var(--line); color:#b8ab8c;}
 </style>
 </head>
 <body>
@@ -79,18 +105,37 @@
 <div id="app-screen" class="app hidden">
   <div class="topbar">
     <div class="brand">🔒 <span>Private</span></div>
+    <div class="search-wrap">
+      <span aria-hidden="true">🔍</span>
+      <input id="search-input" placeholder="Search…" />
+    </div>
+    <button class="btn ghost" id="trash-btn">🗑 Trash</button>
     <button class="btn ghost" id="signout-btn">Sign out</button>
   </div>
 
   <div class="intake">
-    <div class="section-title">Add a private file</div>
+    <div class="section-title">Add private files</div>
     <div class="field">
-      <label>Image, video, or file</label>
-      <input type="file" id="file-input" accept="image/*,video/*" />
+      <label>Images, videos, or files (multiple allowed)</label>
+      <input type="file" id="file-input" accept="image/*,video/*" multiple />
+      <div class="file-list" id="file-list"></div>
     </div>
     <div class="field">
       <label>Description</label>
-      <textarea id="desc-input" placeholder="Optional note"></textarea>
+      <textarea id="desc-input" placeholder="Optional note — applies to all files if adding several"></textarea>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div class="field">
+        <label>Tags</label>
+        <input id="tags-input" placeholder="comma, separated, tags" />
+      </div>
+      <div class="field">
+        <label>Album</label>
+        <select id="album-select">
+          <option value="">No album</option>
+          <option value="__new__">＋ New album…</option>
+        </select>
+      </div>
     </div>
     <div class="intake-actions">
       <button type="button" class="btn stamp" id="upload-btn">Add privately</button>
@@ -98,8 +143,49 @@
     <div class="progress hidden" id="progress-text"></div>
   </div>
 
-  <div class="section-title">Your private files</div>
+  <div class="section-title" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+    <span>Your private files</span>
+    <select id="album-filter" style="margin-left:auto; border:1.5px solid var(--tag); border-radius:3px; padding:6px 8px; background:var(--surface); color:var(--tag); font-size:11px;">
+      <option value="">All albums</option>
+    </select>
+  </div>
   <div id="grid" class="grid"></div>
+</div>
+
+<!-- ================= EDIT MODAL ================= -->
+<div id="edit-modal" class="modal-back hidden">
+  <div class="modal" style="max-width:420px;">
+    <div class="display" style="font-size:18px; text-align:center; margin-bottom:14px;">Edit file</div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="edit-desc"></textarea>
+    </div>
+    <div class="field">
+      <label>Tags</label>
+      <input id="edit-tags" placeholder="comma, separated, tags" />
+    </div>
+    <div class="field">
+      <label>Album</label>
+      <select id="edit-album-select">
+        <option value="">No album</option>
+        <option value="__new__">＋ New album…</option>
+      </select>
+    </div>
+    <div class="intake-actions">
+      <button type="button" class="btn ghost" id="edit-cancel">Cancel</button>
+      <button type="button" class="btn stamp" id="edit-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TRASH MODAL ================= -->
+<div id="trash-modal" class="modal-back hidden">
+  <div class="modal">
+    <div class="display" style="font-size:18px; text-align:center;">Trash</div>
+    <div class="hint" style="margin-top:6px; text-align:center;">Deleted files stay here for 30 days, then they're purged for good.</div>
+    <div id="trash-list" style="display:flex; flex-direction:column; gap:8px; margin:16px 0; max-height:50vh; overflow:auto;"></div>
+    <button type="button" class="btn ghost block" id="trash-close">Close</button>
+  </div>
 </div>
 
 <script>
@@ -113,6 +199,14 @@ const PRIVATE_EMAIL = "private@symohstore.app";
 const SIGNED_URL_TTL = 3600; // 1 hour
 
 const el = (id) => document.getElementById(id);
+
+/* ---------------- PWA: narrow-scoped service worker ---------------- */
+if ("serviceWorker" in navigator){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("private-sw.js", { scope: "./private.html" })
+      .catch((err) => console.warn("Private SW registration failed:", err));
+  });
+}
 
 el("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -140,6 +234,8 @@ async function showApp(){
   el("login-screen").classList.add("hidden");
   el("app-screen").classList.remove("hidden");
   startInactivityWatch();
+  await purgeOldTrash();
+  await loadAlbums();
   loadItems();
 }
 
@@ -161,42 +257,77 @@ function clearInactivityTimer(){ inactivityWatching = false; if (inactivityTimer
   window.addEventListener(evt, resetInactivityTimer, { passive: true });
 });
 
-/* ---------------- Upload ---------------- */
+/* ---------------- File selection (multi-file) ---------------- */
+let selectedFiles = [];
 function detectMediaType(file){
   if (file.type.startsWith("image/")) return "image";
   if (file.type.startsWith("video/")) return "video";
   return "file";
 }
+function renderFileList(){
+  const list = el("file-list");
+  if (!selectedFiles.length){ list.innerHTML = ""; return; }
+  list.innerHTML = selectedFiles.map((f,i) => `<span>${f.name} <button type="button" data-remove="${i}" style="border:none;background:none;color:#ff8a75;cursor:pointer;">✕</button></span>`).join("");
+  list.querySelectorAll("[data-remove]").forEach((b) => b.addEventListener("click", () => {
+    selectedFiles.splice(Number(b.dataset.remove), 1);
+    renderFileList();
+  }));
+}
+el("file-input").addEventListener("change", () => {
+  selectedFiles = selectedFiles.concat(Array.from(el("file-input").files));
+  el("file-input").value = "";
+  renderFileList();
+});
 
 el("upload-btn").addEventListener("click", async () => {
-  const file = el("file-input").files[0];
-  if (!file){ alert("Choose a file first."); return; }
+  if (!selectedFiles.length){ alert("Choose at least one file first."); return; }
   const { data: userData } = await sb.auth.getUser();
   const user = userData?.user;
   if (!user){ alert("Session expired, please log in again."); return; }
 
   const progress = el("progress-text");
   progress.classList.remove("hidden");
-  progress.textContent = "Uploading…";
+  const desc = el("desc-input").value.trim();
+  const tags = el("tags-input").value.split(",").map(t => t.trim()).filter(Boolean);
+  const albumSel = el("album-select").value;
+  const album_id = (albumSel && albumSel !== "__new__") ? albumSel : null;
 
   try{
-    const mediaType = detectMediaType(file);
-    const path = `${user.id}/${Date.now()}-${file.name}`;
-    const { error: upErr } = await sb.storage.from(BUCKET).upload(path, file);
-    if (upErr) throw upErr;
+    for (let i = 0; i < selectedFiles.length; i++){
+      const file = selectedFiles[i];
+      progress.textContent = `Uploading ${i+1} of ${selectedFiles.length}…`;
+      const mediaType = detectMediaType(file);
+      const path = `${user.id}/${Date.now()}-${i}-${file.name}`;
+      const { error: upErr } = await sb.storage.from(BUCKET).upload(path, file);
+      if (upErr) throw upErr;
 
-    const { error } = await sb.from("private_posts").insert({
-      media_type: mediaType,
-      storage_path: path,
-      file_name: file.name,
-      file_size: file.size,
-      description: el("desc-input").value.trim(),
-      created_by: user.id
-    });
-    if (error) throw error;
+      let thumb_storage_path = null;
+      const thumbBlob = await makeThumbnailForFile(file, mediaType);
+      if (thumbBlob){
+        const thumbPath = `${user.id}/thumb-${Date.now()}-${i}-${file.name}.jpg`;
+        const { error: thumbErr } = await sb.storage.from(BUCKET).upload(thumbPath, thumbBlob);
+        if (!thumbErr) thumb_storage_path = thumbPath;
+      }
 
-    el("file-input").value = "";
+      const { error } = await sb.from("private_posts").insert({
+        media_type: mediaType,
+        storage_path: path,
+        thumb_storage_path,
+        file_name: file.name,
+        file_size: file.size,
+        description: desc,
+        tags,
+        album_id,
+        created_by: user.id
+      });
+      if (error) throw error;
+    }
+
+    selectedFiles = [];
+    renderFileList();
     el("desc-input").value = "";
+    el("tags-input").value = "";
+    el("album-select").value = "";
     loadItems();
   } catch(err){
     alert("Upload failed: " + (err.message || err));
@@ -205,43 +336,174 @@ el("upload-btn").addEventListener("click", async () => {
   }
 });
 
-/* ---------------- Grid ---------------- */
+/* ---------------- Thumbnail generation (image + video frame capture) ---------------- */
+function makeImageThumbnail(file){
+  return new Promise((resolve) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => { img.src = e.target.result; };
+    img.onload = () => {
+      const maxDim = 400;
+      let { width, height } = img;
+      if (width > height && width > maxDim){ height = height * (maxDim/width); width = maxDim; }
+      else if (height > maxDim){ width = width * (maxDim/height); height = maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.75);
+    };
+    img.onerror = () => resolve(null);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+function makeVideoThumbnail(file){
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.preload = "metadata"; video.muted = true; video.playsInline = true;
+    const url = URL.createObjectURL(file);
+    video.src = url;
+    const cleanup = () => URL.revokeObjectURL(url);
+    const fail = () => { cleanup(); resolve(null); };
+    video.onloadedmetadata = () => { video.currentTime = Math.min(1, (video.duration || 1) * 0.1); };
+    video.onseeked = () => {
+      try{
+        const maxDim = 400;
+        let width = video.videoWidth, height = video.videoHeight;
+        if (!width || !height){ fail(); return; }
+        if (width > height && width > maxDim){ height = height * (maxDim/width); width = maxDim; }
+        else if (height > maxDim){ width = width * (maxDim/height); height = maxDim; }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(video, 0, 0, width, height);
+        canvas.toBlob((blob) => { cleanup(); resolve(blob); }, "image/jpeg", 0.75);
+      } catch(err){ fail(); }
+    };
+    video.onerror = fail;
+    setTimeout(fail, 8000);
+  });
+}
+function makeThumbnailForFile(file, mediaType){
+  if (mediaType === "image") return makeImageThumbnail(file);
+  if (mediaType === "video") return makeVideoThumbnail(file);
+  return Promise.resolve(null);
+}
+
+/* ---------------- Albums ---------------- */
+let userAlbums = [];
+async function loadAlbums(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const { data, error } = await sb.from("private_albums").select("*").eq("created_by", user.id).order("name");
+  if (error){ console.error(error); return; }
+  userAlbums = data || [];
+  renderAlbumOptions();
+}
+function renderAlbumOptions(){
+  const intakeSel = el("album-select");
+  const filterSel = el("album-filter");
+  const editSel = el("edit-album-select");
+  const intakeCurrent = intakeSel.value, filterCurrent = filterSel.value, editCurrent = editSel ? editSel.value : "";
+
+  const opts = userAlbums.map(a => `<option value="${a.id}">${a.name.replace(/</g,"&lt;")}</option>`).join("");
+  intakeSel.innerHTML = `<option value="">No album</option>${opts}<option value="__new__">＋ New album…</option>`;
+  intakeSel.value = userAlbums.some(a => a.id === intakeCurrent) ? intakeCurrent : "";
+
+  filterSel.innerHTML = `<option value="">All albums</option>${opts}`;
+  filterSel.value = userAlbums.some(a => a.id === filterCurrent) ? filterCurrent : "";
+
+  if (editSel){
+    editSel.innerHTML = `<option value="">No album</option>${opts}<option value="__new__">＋ New album…</option>`;
+    editSel.value = userAlbums.some(a => a.id === editCurrent) ? editCurrent : "";
+  }
+}
+async function createAlbumFlow(selectEl){
+  const name = prompt("Name this album:");
+  if (!name || !name.trim()){ selectEl.value = ""; return; }
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  const { data, error } = await sb.from("private_albums").insert({ name: name.trim(), created_by: user.id }).select().single();
+  if (error){ alert("Couldn't create album: " + error.message); selectEl.value = ""; return; }
+  await loadAlbums();
+  selectEl.value = data.id;
+}
+el("album-select").addEventListener("change", (e) => { if (e.target.value === "__new__") createAlbumFlow(e.target); });
+el("album-filter").addEventListener("change", applySearchAndRender);
+
+/* ---------------- Grid + search ---------------- */
+let allItems = [];
+
 async function loadItems(){
   const { data: userData } = await sb.auth.getUser();
   const user = userData?.user;
   if (!user) return;
   const { data, error } = await sb.from("private_posts").select("*")
     .eq("created_by", user.id)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
   if (error){ console.error(error); return; }
-  await renderGrid(data || []);
+  allItems = data || [];
+  applySearchAndRender();
+}
+
+el("search-input").addEventListener("input", applySearchAndRender);
+
+function albumNameFor(id){
+  const a = userAlbums.find(x => x.id === id);
+  return a ? a.name : null;
+}
+
+function applySearchAndRender(){
+  const q = el("search-input").value.trim().toLowerCase();
+  const albumFilter = el("album-filter").value;
+  const filtered = allItems.filter((item) => {
+    if (albumFilter && item.album_id !== albumFilter) return false;
+    if (!q) return true;
+    return (item.description || "").toLowerCase().includes(q) ||
+      (item.file_name || "").toLowerCase().includes(q) ||
+      item.media_type.toLowerCase().includes(q) ||
+      (item.tags || []).some(t => t.toLowerCase().includes(q));
+  });
+  renderGrid(filtered);
 }
 
 async function renderGrid(items){
   const grid = el("grid");
   if (!items.length){
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">Nothing here yet.</div>`;
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">Nothing matches. Add a file above, or clear your search.</div>`;
     return;
   }
 
   const withUrls = await Promise.all(items.map(async (item) => {
     const { data } = await sb.storage.from(BUCKET).createSignedUrl(item.storage_path, SIGNED_URL_TTL);
-    return { ...item, signedUrl: data?.signedUrl || null };
+    let thumbUrl = null;
+    if (item.thumb_storage_path){
+      const { data: thumbData } = await sb.storage.from(BUCKET).createSignedUrl(item.thumb_storage_path, SIGNED_URL_TTL);
+      thumbUrl = thumbData?.signedUrl || null;
+    }
+    return { ...item, signedUrl: data?.signedUrl || null, thumbUrl };
   }));
 
-  grid.innerHTML = withUrls.map((item) => `
+  grid.innerHTML = withUrls.map((item) => {
+    const albumName = item.album_id ? albumNameFor(item.album_id) : null;
+    return `
     <div class="card">
       <div class="card-media">${mediaMarkup(item)}</div>
       <div class="card-body">
         <div class="card-desc">${(item.description || "(no description)").replace(/</g,"&lt;")}</div>
+        ${albumName ? `<div class="tag-pill" style="align-self:flex-start;">📁 ${albumName.replace(/</g,"&lt;")}</div>` : ""}
+        <div class="tag-pills">${(item.tags||[]).map(t=>`<span class="tag-pill">${t.replace(/</g,"&lt;")}</span>`).join("")}</div>
         <div class="card-meta"><span>${item.media_type.toUpperCase()}</span><span>${new Date(item.created_at).toLocaleDateString()}</span></div>
         <div class="card-actions">
           <button class="btn ghost" data-download="${item.id}">⬇ Download</button>
-          <button class="btn stamp" data-del="${item.id}" data-path="${item.storage_path}">Delete</button>
+          <button class="btn ghost" data-edit="${item.id}">Edit</button>
+          <button class="btn stamp" data-del="${item.id}">Delete</button>
         </div>
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 
   grid.querySelectorAll("[data-download]").forEach((b) => b.addEventListener("click", async () => {
     const item = withUrls.find((x) => x.id === b.dataset.download);
@@ -257,19 +519,129 @@ async function renderGrid(items){
     } catch(err){ window.open(item.signedUrl, "_blank"); }
   }));
 
+  grid.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => {
+    const item = allItems.find(x => x.id === b.dataset.edit);
+    if (item) openEditModal(item);
+  }));
+
   grid.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", async () => {
-    if (!confirm("Delete this file permanently?")) return;
-    await sb.storage.from(BUCKET).remove([b.dataset.path]);
-    await sb.from("private_posts").delete().eq("id", b.dataset.del);
+    const { error } = await sb.from("private_posts").update({ deleted_at: new Date().toISOString() }).eq("id", b.dataset.del);
+    if (error){ alert("Delete failed: " + error.message); return; }
     loadItems();
+    showUndoToast("File moved to trash.", async () => {
+      await sb.from("private_posts").update({ deleted_at: null }).eq("id", b.dataset.del);
+      loadItems();
+    });
   }));
 }
 
 function mediaMarkup(item){
-  if (!item.signedUrl) return `<div style="color:#b8ab8c; font-size:12px;">Unavailable</div>`;
-  if (item.media_type === "image") return `<img src="${item.signedUrl}" alt="" loading="lazy" />`;
-  if (item.media_type === "video") return `<video src="${item.signedUrl}" muted></video>`;
+  const previewUrl = item.thumbUrl || item.signedUrl;
+  if (!previewUrl) return `<div style="color:#b8ab8c; font-size:12px;">Unavailable</div>`;
+  if (item.media_type === "image" || (item.media_type === "video" && item.thumbUrl)) return `<img src="${previewUrl}" alt="" loading="lazy" />`;
+  if (item.media_type === "video") return `<video src="${previewUrl}" muted></video>`;
   return `<div style="color:#e9dfc9; font-size:34px;">📄</div>`;
+}
+
+/* ---------------- Edit modal ---------------- */
+let editingId = null;
+function openEditModal(item){
+  editingId = item.id;
+  el("edit-desc").value = item.description || "";
+  el("edit-tags").value = (item.tags || []).join(", ");
+  el("edit-album-select").value = item.album_id || "";
+  el("edit-modal").classList.remove("hidden");
+}
+el("edit-album-select").addEventListener("change", (e) => { if (e.target.value === "__new__") createAlbumFlow(e.target); });
+el("edit-cancel").addEventListener("click", () => el("edit-modal").classList.add("hidden"));
+el("edit-save").addEventListener("click", async () => {
+  const description = el("edit-desc").value.trim();
+  const tags = el("edit-tags").value.split(",").map(t => t.trim()).filter(Boolean);
+  const albumSel = el("edit-album-select").value;
+  const album_id = (albumSel && albumSel !== "__new__") ? albumSel : null;
+  const { error } = await sb.from("private_posts").update({ description, tags, album_id }).eq("id", editingId);
+  if (error){ alert("Update failed: " + error.message); return; }
+  el("edit-modal").classList.add("hidden");
+  loadItems();
+});
+
+/* ---------------- Undo toast ---------------- */
+function showUndoToast(message, onUndo){
+  const existing = document.querySelector(".priv-toast");
+  if (existing) existing.remove();
+  const toast = document.createElement("div");
+  toast.className = "priv-toast";
+  toast.style.cssText = "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--tag);color:var(--ink);border-radius:4px;padding:12px 16px;display:flex;align-items:center;gap:14px;font-size:13px;box-shadow:0 10px 24px rgba(0,0,0,0.5);z-index:60;";
+  toast.innerHTML = `<span>${message}</span><button style="background:none;border:none;color:var(--stamp);font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:0.06em;font-size:12px;cursor:pointer;">Undo</button>`;
+  toast.querySelector("button").addEventListener("click", () => { onUndo(); toast.remove(); });
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 6000);
+}
+
+/* ---------------- Trash (30-day retention) ---------------- */
+async function purgeOldTrash(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: expired } = await sb.from("private_posts").select("id, storage_path, thumb_storage_path")
+    .eq("created_by", user.id).lt("deleted_at", cutoff);
+  if (expired && expired.length){
+    const paths = expired.map((e) => e.storage_path).concat(expired.filter(e => e.thumb_storage_path).map((e) => e.thumb_storage_path));
+    await sb.storage.from(BUCKET).remove(paths);
+    await sb.from("private_posts").delete().in("id", expired.map((e) => e.id));
+  }
+}
+
+async function openTrashModal(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const { data, error } = await sb.from("private_posts").select("*")
+    .eq("created_by", user.id)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+  if (error){ alert("Couldn't load trash: " + error.message); return; }
+  renderTrashList(data || []);
+  el("trash-modal").classList.remove("hidden");
+}
+el("trash-btn").addEventListener("click", openTrashModal);
+el("trash-close").addEventListener("click", () => el("trash-modal").classList.add("hidden"));
+
+function renderTrashList(items){
+  const list = el("trash-list");
+  if (!items.length){
+    list.innerHTML = `<div class="hint" style="margin:0;">Trash is empty.</div>`;
+    return;
+  }
+  list.innerHTML = items.map((item) => {
+    const deletedAt = new Date(item.deleted_at);
+    const daysLeft = Math.max(0, 30 - Math.floor((Date.now() - deletedAt.getTime()) / 86400000));
+    return `
+      <div class="trash-row">
+        <div class="trash-info">
+          <div class="trash-desc">${(item.description || "(no description)").replace(/</g,"&lt;")}</div>
+          <div class="trash-meta">${item.media_type.toUpperCase()} · ${daysLeft} day${daysLeft===1?"":"s"} left</div>
+        </div>
+        <button class="btn ghost" data-restore="${item.id}">Restore</button>
+        <button class="btn stamp" data-purge="${item.id}" data-path="${item.storage_path}" data-thumb="${item.thumb_storage_path || ""}">Delete forever</button>
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll("[data-restore]").forEach((b) => b.addEventListener("click", async () => {
+    await sb.from("private_posts").update({ deleted_at: null }).eq("id", b.dataset.restore);
+    openTrashModal();
+    loadItems();
+  }));
+  list.querySelectorAll("[data-purge]").forEach((b) => b.addEventListener("click", async () => {
+    if (!confirm("Permanently delete this file? This can't be undone.")) return;
+    const paths = [b.dataset.path];
+    if (b.dataset.thumb) paths.push(b.dataset.thumb);
+    await sb.storage.from(BUCKET).remove(paths);
+    await sb.from("private_posts").delete().eq("id", b.dataset.purge);
+    openTrashModal();
+  }));
 }
 
 (async function boot(){

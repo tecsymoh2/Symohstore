@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Contacts — Symoh Store</title>
+<link rel="manifest" href="contacts-manifest.webmanifest">
+<meta name="theme-color" content="#5a3a22">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Contacts">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --paper:#c7a97b; --tag:#ecdfba; --ink:#221b12; --crate:#5a3a22; --crate-dark:#402a18;
+    --stamp:#b7381f; --teal:#2e5c55; --line: rgba(34,27,18,0.28); --surface:#fbf6e9;
+    --shadow: 0 10px 24px rgba(34,27,18,0.28);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:'Work Sans', sans-serif; color:var(--ink); background:var(--paper); min-height:100vh;}
+  h1,h2,h3,.display{font-family:'Oswald', sans-serif; text-transform:uppercase; letter-spacing:0.04em; margin:0;}
+  .mono{font-family:'JetBrains Mono', monospace;}
+  button, input, textarea, select{font-family:inherit; font-size:inherit;}
+  button{cursor:pointer;}
+  a{color:var(--teal);}
+  .hidden{display:none !important;}
+  .screen{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+
+  .gate-card{width:100%; max-width:380px; background:var(--tag); border:2px solid var(--ink); border-radius:4px; padding:32px 28px 28px; box-shadow:var(--shadow);}
+  .gate-title{text-align:center; font-size:26px;}
+  .gate-sub{text-align:center; font-size:12px; letter-spacing:0.18em; text-transform:uppercase; color:var(--crate-dark); margin:4px 0 22px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--crate-dark); margin-bottom:6px;}
+  .field input, .field select, .field textarea{width:100%; padding:11px 12px; border:1.5px solid var(--ink); border-radius:3px; background:var(--surface); color:var(--ink);}
+  .field textarea{resize:vertical; min-height:60px;}
+  .field input[type=file]{padding:8px;}
+  .field input[type=checkbox]{width:auto;}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; border:2px solid var(--ink); border-radius:3px; padding:11px 18px; background:var(--ink); color:var(--tag); font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:0.08em; font-size:13px;}
+  .btn:active{transform:scale(0.97);}
+  .btn:disabled{opacity:0.6;}
+  .btn.block{width:100%;}
+  .btn.stamp{background:var(--stamp); border-color:var(--stamp); color:#fbf6e9;}
+  .btn.ghost{background:transparent; color:var(--ink);}
+  .btn.teal{background:var(--teal); border-color:var(--teal); color:#fbf6e9;}
+  .btn.sm{padding:6px 10px; font-size:11px;}
+  .icon-btn{border:1.5px solid var(--tag); background:transparent; color:var(--tag); border-radius:3px; padding:8px 10px; font-size:14px;}
+  .err{color:var(--stamp); font-size:12.5px; margin-top:10px; text-align:center;}
+  .hint{font-size:11px; color:var(--crate-dark); line-height:1.5;}
+
+  .app{max-width:1080px; margin:0 auto; padding:18px 16px 60px;}
+  .topbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--crate); color:var(--tag); border:2px solid var(--ink); border-radius:4px; padding:14px 16px; margin-bottom:16px; box-shadow:var(--shadow);}
+  .brand{font-size:20px; white-space:nowrap;}
+  .brand span{color:var(--stamp);}
+  .search-wrap{flex:1; min-width:150px; display:flex; align-items:center; gap:8px; background:var(--surface); border:1.5px solid var(--ink); border-radius:3px; padding:8px 10px;}
+  .search-wrap input{flex:1; border:none; background:transparent; color:var(--ink);}
+  .search-wrap input:focus{outline:none;}
+  .topbar .btn{padding:9px 14px; font-size:12px;}
+
+  .filter-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:18px;}
+  .pill{padding:6px 12px; border:1.5px solid var(--ink); border-radius:20px; background:transparent; color:var(--ink); font-family:'Oswald',sans-serif; letter-spacing:0.05em; text-transform:uppercase; font-size:11px;}
+  .pill.active{background:var(--ink); color:var(--tag);}
+  .filter-bar select{border:1.5px solid var(--ink); border-radius:3px; padding:7px 10px; background:var(--surface); color:var(--ink); font-size:12px;}
+
+  .bulk-bar{display:none; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; background:var(--stamp); color:#fff; border-radius:4px; padding:10px 14px; margin-bottom:16px; font-size:12.5px;}
+  .bulk-bar.show{display:flex;}
+
+  .section-title{font-size:14px; letter-spacing:0.14em; color:var(--crate-dark); margin-bottom:12px; display:flex; align-items:center; gap:10px;}
+  .section-title::after{content:""; flex:1; height:1px; background:var(--line);}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px;}
+  .card{background:var(--tag); border:2px solid var(--ink); border-radius:4px; overflow:hidden; box-shadow:var(--shadow); display:flex; flex-direction:column; position:relative;}
+  .card-top{display:flex; align-items:center; gap:12px; padding:14px 14px 8px;}
+  .avatar{width:56px; height:56px; border-radius:50%; background:var(--crate); color:var(--tag); display:flex; align-items:center; justify-content:center; font-size:20px; font-family:'Oswald',sans-serif; overflow:hidden; flex-shrink:0; border:2px solid var(--ink);}
+  .avatar img{width:100%; height:100%; object-fit:cover;}
+  .card-name{font-size:15px; font-weight:600; line-height:1.25; word-break:break-word;}
+  .card-sub{font-size:11px; color:var(--crate-dark);}
+  .fav-star{position:absolute; top:10px; right:10px; background:none; border:none; font-size:18px; cursor:pointer; color:var(--crate-dark);}
+  .fav-star.active{color:var(--stamp);}
+  .select-check{position:absolute; top:10px; left:10px; width:20px; height:20px; z-index:2;}
+  .card-body{padding:6px 14px 14px; display:flex; flex-direction:column; gap:8px; flex:1;}
+  .contact-line{font-size:12.5px; display:flex; align-items:center; gap:6px;}
+  .tag-pills{display:flex; flex-wrap:wrap; gap:4px;}
+  .tag-pill{font-size:9.5px; padding:2px 7px; border-radius:10px; background:var(--surface); border:1px solid var(--line); color:var(--crate-dark);}
+  .card-actions{display:flex; gap:6px; flex-wrap:wrap; margin-top:auto; padding-top:8px; border-top:1px dashed var(--line);}
+  .card-actions .btn{flex:1; padding:7px 6px; font-size:10px; min-width:56px;}
+  .empty{text-align:center; padding:50px 20px; color:var(--crate-dark); border:2px dashed var(--line); border-radius:4px;}
+
+  .modal-back{position:fixed; inset:0; background:rgba(34,27,18,0.55); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50;}
+  .modal{background:var(--tag); border:2px solid var(--ink); border-radius:4px; max-width:480px; width:100%; padding:22px; box-shadow:var(--shadow); text-align:left; max-height:88vh; overflow:auto;}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .multi-field{display:flex; flex-direction:column; gap:6px; margin-bottom:16px;}
+  .multi-row{display:flex; gap:6px;}
+  .multi-row input{flex:1;}
+  .multi-row button{border:none; background:none; color:var(--stamp); cursor:pointer; font-size:14px; padding:0 6px;}
+  .add-row-btn{font-size:11px; color:var(--teal); background:none; border:none; cursor:pointer; text-align:left; padding:0;}
+  .trash-row{display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:8px 10px; font-size:12px;}
+  .trash-row .trash-info{flex:1; min-width:0;}
+  .trash-row .trash-desc{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .trash-row .trash-meta{color:var(--crate-dark); font-size:10.5px;}
+  .trash-row .btn{padding:6px 9px; font-size:10px;}
+  .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--tag); border-radius:4px; padding:12px 16px; display:flex; align-items:center; gap:14px; font-size:13px; box-shadow:var(--shadow); z-index:60;}
+  .toast button{background:none; border:none; color:var(--stamp); font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:0.06em; font-size:12px; cursor:pointer;}
+
+  @media (max-width:480px){ .two-col{grid-template-columns:1fr;} .modal{padding:16px;} }
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="screen">
+  <form class="gate-card" id="login-form">
+    <div class="gate-title">📇 <span style="color:var(--stamp)">Contacts</span></div>
+    <div class="gate-sub">Symoh Store</div>
+    <div class="field">
+      <label for="username">Handler ID</label>
+      <input id="username" autocomplete="username" placeholder="Symoh" required />
+    </div>
+    <div class="field">
+      <label for="password">Access Code</label>
+      <input id="password" type="password" autocomplete="current-password" required />
+    </div>
+    <button type="submit" class="btn stamp block" id="login-btn">Unlock</button>
+    <div class="err hidden" id="login-err"></div>
+  </form>
+</div>
+
+<div id="app-screen" class="app hidden">
+  <div class="topbar">
+    <div class="brand">📇 <span>Contacts</span></div>
+    <div class="search-wrap">
+      <span aria-hidden="true">🔍</span>
+      <input id="search-input" placeholder="Search name, phone, email, tag…" />
+    </div>
+    <button class="btn teal" id="add-contact-btn">＋ Add</button>
+    <button class="btn ghost" id="import-vcf-btn">📥 Import .vcf</button>
+    <input type="file" id="vcf-file-input" accept=".vcf,text/vcard" multiple class="hidden" />
+    <button class="btn ghost hidden" id="import-phone-btn">📱 From phone</button>
+    <button class="btn ghost" id="select-toggle">Select</button>
+    <button class="btn ghost" id="trash-btn">🗑 Trash</button>
+    <button class="btn ghost" id="export-all-btn">⬇ Export all</button>
+    <button class="btn ghost" id="signout-btn">Sign out</button>
+  </div>
+
+  <div class="bulk-bar" id="bulk-bar">
+    <span id="bulk-count">0 selected</span>
+    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+      <button class="btn ghost sm" id="bulk-tag" style="color:#fff; border-color:#fff;">＋ Tag</button>
+      <button class="btn ghost sm" id="bulk-export" style="color:#fff; border-color:#fff;">⬇ Export</button>
+      <button class="btn stamp sm" id="bulk-delete">Delete</button>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <button class="pill active" id="filter-all">All</button>
+    <button class="pill" id="filter-favorites">⭐ Favorites</button>
+    <select id="tag-filter"><option value="">All tags</option></select>
+    <select id="sort-select">
+      <option value="name">Name (A–Z)</option>
+      <option value="recent">Recently added</option>
+    </select>
+  </div>
+
+  <div class="section-title">Your contacts</div>
+  <div id="grid" class="grid"></div>
+</div>
+
+<!-- ================= ADD / EDIT CONTACT MODAL ================= -->
+<div id="contact-modal" class="modal-back hidden">
+  <div class="modal">
+    <div class="display" style="font-size:18px; text-align:center; margin-bottom:14px;" id="contact-modal-title">Add contact</div>
+
+    <div class="field">
+      <label>Photo</label>
+      <input type="file" id="photo-input" accept="image/*" />
+    </div>
+    <div class="field">
+      <label>Full name</label>
+      <input id="name-input" required />
+    </div>
+
+    <div class="multi-field" id="phones-field">
+      <label style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--crate-dark);">Phone numbers</label>
+      <div id="phones-list"></div>
+      <button type="button" class="add-row-btn" id="add-phone-btn">＋ Add phone</button>
+    </div>
+
+    <div class="multi-field" id="emails-field">
+      <label style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--crate-dark);">Emails</label>
+      <div id="emails-list"></div>
+      <button type="button" class="add-row-btn" id="add-email-btn">＋ Add email</button>
+    </div>
+
+    <div class="two-col">
+      <div class="field">
+        <label>Company</label>
+        <input id="company-input" />
+      </div>
+      <div class="field">
+        <label>Job title</label>
+        <input id="title-input" />
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Birthday</label>
+        <input id="bday-input" type="date" />
+      </div>
+      <div class="field">
+        <label>Tags</label>
+        <input id="tags-input" placeholder="comma, separated" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Address</label>
+      <input id="address-input" />
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="notes-input"></textarea>
+    </div>
+    <div class="field" style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="favorite-input" />
+      <label for="favorite-input" style="margin:0; text-transform:none; letter-spacing:normal; font-size:12px;">⭐ Mark as favorite</label>
+    </div>
+
+    <div class="progress hint hidden" id="contact-progress"></div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+      <button type="button" class="btn ghost" id="contact-cancel">Cancel</button>
+      <button type="button" class="btn stamp" id="contact-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TRASH MODAL ================= -->
+<div id="trash-modal" class="modal-back hidden">
+  <div class="modal">
+    <div class="display" style="font-size:18px; text-align:center;">Trash</div>
+    <div class="hint" style="margin-top:6px; text-align:center;">Deleted contacts stay here for 30 days, then they're purged for good.</div>
+    <div id="trash-list" style="display:flex; flex-direction:column; gap:8px; margin:16px 0; max-height:50vh; overflow:auto;"></div>
+    <button type="button" class="btn ghost block" id="trash-close">Close</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://uivlfniqirbmuxjbbwis.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdmxmbmlxaXJibXV4amJid2lzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2NTkzNTQsImV4cCI6MjEwMjIzNTM1NH0.M4sIN4SkG3dLnPHYuvXzCLrrKW5VbPCCx38lYARHZ_c";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { storageKey: "symoh-store-auth" }
+});
+const BUCKET = "symoh-contacts";
+const USERNAME_EMAIL_MAP = { "symoh": "symoh@symohstore.app" };
+const SIGNED_URL_TTL = 3600;
+
+const el = (id) => document.getElementById(id);
+
+if ("serviceWorker" in navigator){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("contacts-sw.js", { scope: "./contacts.html" })
+      .catch((err) => console.warn("Contacts SW registration failed:", err));
+  });
+}
+
+el("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  el("login-err").classList.add("hidden");
+  const uname = el("username").value.trim().toLowerCase();
+  const pw = el("password").value;
+  const email = USERNAME_EMAIL_MAP[uname];
+  const btn = el("login-btn");
+  if (!email){
+    el("login-err").textContent = "Unrecognized handler ID.";
+    el("login-err").classList.remove("hidden");
+    return;
+  }
+  btn.disabled = true; btn.textContent = "Checking…";
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  btn.disabled = false; btn.textContent = "Unlock";
+  if (error){
+    el("login-err").textContent = "Access denied — check your credentials.";
+    el("login-err").classList.remove("hidden");
+    return;
+  }
+  showApp();
+});
+
+el("signout-btn").addEventListener("click", async () => {
+  clearInactivityTimer();
+  await sb.auth.signOut();
+  location.reload();
+});
+
+async function showApp(){
+  el("login-screen").classList.add("hidden");
+  el("app-screen").classList.remove("hidden");
+  startInactivityWatch();
+  if ("contacts" in navigator && "ContactsManager" in window){
+    el("import-phone-btn").classList.remove("hidden");
+  }
+  await purgeOldTrash();
+  loadContacts();
+}
+
+const INACTIVITY_MS = 60 * 1000;
+let inactivityTimer = null, inactivityWatching = false;
+function isDeviceRemembered(){ return localStorage.getItem("symoh_remember_device") === "1"; }
+function resetInactivityTimer(){
+  if (!inactivityWatching || isDeviceRemembered()) return;
+  if (inactivityTimer) clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(async () => {
+    inactivityWatching = false;
+    await sb.auth.signOut();
+    location.reload();
+  }, INACTIVITY_MS);
+}
+function startInactivityWatch(){ if (isDeviceRemembered()) return; inactivityWatching = true; resetInactivityTimer(); }
+function clearInactivityTimer(){ inactivityWatching = false; if (inactivityTimer) clearTimeout(inactivityTimer); }
+["mousemove","mousedown","keydown","touchstart","scroll","click"].forEach((evt) => {
+  window.addEventListener(evt, resetInactivityTimer, { passive: true });
+});
+
+function makeImageThumbnail(file){
+  return new Promise((resolve) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => { img.src = e.target.result; };
+    img.onload = () => {
+      const maxDim = 240;
+      let { width, height } = img;
+      if (width > height && width > maxDim){ height = height * (maxDim/width); width = maxDim; }
+      else if (height > maxDim){ width = width * (maxDim/height); height = maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.8);
+    };
+    img.onerror = () => resolve(null);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+function showUndoToast(message, onUndo){
+  const existing = document.querySelector(".toast");
+  if (existing) existing.remove();
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.innerHTML = `<span>${message}</span>${onUndo ? `<button>Undo</button>` : ""}`;
+  if (onUndo) toast.querySelector("button").addEventListener("click", () => { onUndo(); toast.remove(); });
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 6000);
+}
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+/* ---------------- Multi-value fields (phones / emails) ---------------- */
+function renderMultiField(listEl, values, placeholder){
+  listEl.innerHTML = "";
+  (values.length ? values : [""]).forEach((v) => addMultiRow(listEl, v, placeholder));
+}
+function addMultiRow(listEl, value, placeholder){
+  const row = document.createElement("div");
+  row.className = "multi-row";
+  row.innerHTML = `<input value="${(value||"").replace(/"/g,"&quot;")}" placeholder="${placeholder}" /><button type="button" title="Remove">✕</button>`;
+  row.querySelector("button").addEventListener("click", () => {
+    if (listEl.children.length > 1) row.remove();
+    else row.querySelector("input").value = "";
+  });
+  listEl.appendChild(row);
+}
+function getMultiValues(listEl){
+  return Array.from(listEl.querySelectorAll("input")).map(i => i.value.trim()).filter(Boolean);
+}
+el("add-phone-btn").addEventListener("click", () => addMultiRow(el("phones-list"), "", "555-0100"));
+el("add-email-btn").addEventListener("click", () => addMultiRow(el("emails-list"), "", "name@example.com"));
+
+/* ---------------- Add / Edit contact modal ---------------- */
+let editingContactId = null;
+let pendingPhotoFile = null;
+
+function openContactModal(contact){
+  editingContactId = contact ? contact.id : null;
+  pendingPhotoFile = null;
+  el("contact-modal-title").textContent = contact ? "Edit contact" : "Add contact";
+  el("photo-input").value = "";
+  el("name-input").value = contact?.full_name || "";
+  renderMultiField(el("phones-list"), contact?.phones || [], "555-0100");
+  renderMultiField(el("emails-list"), contact?.emails || [], "name@example.com");
+  el("company-input").value = contact?.company || "";
+  el("title-input").value = contact?.job_title || "";
+  el("bday-input").value = contact?.birthday || "";
+  el("tags-input").value = (contact?.tags || []).join(", ");
+  el("address-input").value = contact?.address || "";
+  el("notes-input").value = contact?.notes || "";
+  el("favorite-input").checked = !!contact?.favorite;
+  el("contact-progress").classList.add("hidden");
+  el("contact-modal").classList.remove("hidden");
+}
+el("add-contact-btn").addEventListener("click", () => openContactModal(null));
+el("contact-cancel").addEventListener("click", () => el("contact-modal").classList.add("hidden"));
+el("photo-input").addEventListener("change", () => { pendingPhotoFile = el("photo-input").files[0] || null; });
+
+el("contact-save").addEventListener("click", async () => {
+  const full_name = el("name-input").value.trim();
+  if (!full_name){ alert("Enter a name."); return; }
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user){ alert("Session expired, please log in again."); return; }
+
+  const progress = el("contact-progress");
+  progress.classList.remove("hidden");
+  progress.textContent = "Saving…";
+
+  try{
+    const payload = {
+      full_name,
+      phones: getMultiValues(el("phones-list")),
+      emails: getMultiValues(el("emails-list")),
+      company: el("company-input").value.trim() || null,
+      job_title: el("title-input").value.trim() || null,
+      birthday: el("bday-input").value || null,
+      tags: el("tags-input").value.split(",").map(t => t.trim()).filter(Boolean),
+      address: el("address-input").value.trim() || null,
+      notes: el("notes-input").value.trim() || null,
+      favorite: el("favorite-input").checked,
+      updated_at: new Date().toISOString()
+    };
+
+    let photo_storage_path, photo_thumb_path;
+    if (pendingPhotoFile){
+      progress.textContent = "Uploading photo…";
+      const path = `${user.id}/${Date.now()}-${pendingPhotoFile.name}`;
+      const { error: upErr } = await sb.storage.from(BUCKET).upload(path, pendingPhotoFile);
+      if (upErr) throw upErr;
+      photo_storage_path = path;
+      const thumbBlob = await makeImageThumbnail(pendingPhotoFile);
+      if (thumbBlob){
+        const thumbPath = `${user.id}/thumb-${Date.now()}-${pendingPhotoFile.name}.jpg`;
+        const { error: thumbErr } = await sb.storage.from(BUCKET).upload(thumbPath, thumbBlob);
+        if (!thumbErr) photo_thumb_path = thumbPath;
+      }
+    }
+    if (photo_storage_path) payload.photo_storage_path = photo_storage_path;
+    if (photo_thumb_path) payload.photo_thumb_path = photo_thumb_path;
+
+    if (editingContactId){
+      const { error } = await sb.from("contacts").update(payload).eq("id", editingContactId);
+      if (error) throw error;
+    } else {
+      payload.created_by = user.id;
+      const { error } = await sb.from("contacts").insert(payload);
+      if (error) throw error;
+    }
+
+    el("contact-modal").classList.add("hidden");
+    loadContacts();
+  } catch(err){
+    alert("Save failed: " + (err.message || err));
+  } finally {
+    progress.classList.add("hidden");
+  }
+});
+
+/* ---------------- vCard import ---------------- */
+function unfoldVCard(text){
+  return text.replace(/\r\n/g, "\n").replace(/\n[ \t]/g, "");
+}
+function normalizeBday(v){
+  const m1 = v.match(/^(\d{4})(\d{2})(\d{2})/);
+  if (m1) return `${m1[1]}-${m1[2]}-${m1[3]}`;
+  const m2 = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
+  return null;
+}
+function parseSingleVCard(block){
+  const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+  const contact = { full_name:"", phones:[], emails:[], company:null, job_title:null, birthday:null, address:null, notes:null, photoDataUrl:null, photoUrl:null };
+  let nameParts = null;
+  for (const line of lines){
+    if (/^(BEGIN|END|VERSION):/i.test(line)) continue;
+    const idx = line.indexOf(":");
+    if (idx === -1) continue;
+    const keyPart = line.slice(0, idx);
+    const value = line.slice(idx + 1);
+    const [key, ...paramsArr] = keyPart.split(";");
+    const params = paramsArr.join(";").toUpperCase();
+    const K = key.toUpperCase();
+    if (K === "FN") contact.full_name = value;
+    else if (K === "N") nameParts = value.split(";");
+    else if (K === "TEL") contact.phones.push(value.trim());
+    else if (K === "EMAIL") contact.emails.push(value.trim());
+    else if (K === "ORG") contact.company = value.split(";")[0] || null;
+    else if (K === "TITLE") contact.job_title = value || null;
+    else if (K === "BDAY") contact.birthday = normalizeBday(value);
+    else if (K === "ADR") contact.address = value.split(";").map(p => p.trim()).filter(Boolean).join(", ") || null;
+    else if (K === "NOTE") contact.notes = value.replace(/\\n/g, "\n");
+    else if (K === "PHOTO"){
+      if (params.includes("VALUE=URI") || /^https?:\/\//i.test(value)) contact.photoUrl = value;
+      else {
+        const typeMatch = params.match(/TYPE=([A-Z]+)/);
+        const mime = typeMatch ? `image/${typeMatch[1].toLowerCase()}` : "image/jpeg";
+        contact.photoDataUrl = `data:${mime};base64,${value.replace(/\s/g, "")}`;
+      }
+    }
+  }
+  if (!contact.full_name && nameParts){
+    const [family = "", given = "", middle = ""] = nameParts;
+    contact.full_name = [given, middle, family].filter(Boolean).join(" ").trim();
+  }
+  if (!contact.full_name) contact.full_name = "Unnamed contact";
+  return contact;
+}
+function parseVCardFile(text){
+  const unfolded = unfoldVCard(text);
+  const blocks = unfolded.split(/BEGIN:VCARD/i).slice(1).map(b => "BEGIN:VCARD" + b);
+  return blocks.map(parseSingleVCard);
+}
+
+el("import-vcf-btn").addEventListener("click", () => el("vcf-file-input").click());
+el("vcf-file-input").addEventListener("change", async () => {
+  const files = Array.from(el("vcf-file-input").files);
+  if (!files.length) return;
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user){ alert("Session expired, please log in again."); return; }
+
+  let imported = 0, failed = 0;
+  for (const file of files){
+    const text = await file.text();
+    const parsed = parseVCardFile(text);
+    for (const c of parsed){
+      try{
+        let photo_storage_path, photo_thumb_path;
+        let photoBlob = null;
+        if (c.photoDataUrl){
+          const res = await fetch(c.photoDataUrl);
+          photoBlob = await res.blob();
+        } else if (c.photoUrl){
+          try{ const res = await fetch(c.photoUrl); if (res.ok) photoBlob = await res.blob(); } catch(e){ /* CORS or unreachable, skip photo */ }
+        }
+        if (photoBlob){
+          const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+          const { error: upErr } = await sb.storage.from(BUCKET).upload(path, photoBlob);
+          if (!upErr){
+            photo_storage_path = path;
+            const thumbBlob = await makeImageThumbnail(new File([photoBlob], "photo.jpg", { type: photoBlob.type || "image/jpeg" }));
+            if (thumbBlob){
+              const thumbPath = `${user.id}/thumb-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+              const { error: thumbErr } = await sb.storage.from(BUCKET).upload(thumbPath, thumbBlob);
+              if (!thumbErr) photo_thumb_path = thumbPath;
+            }
+          }
+        }
+        const { error } = await sb.from("contacts").insert({
+          full_name: c.full_name, phones: c.phones, emails: c.emails, company: c.company,
+          job_title: c.job_title, birthday: c.birthday, address: c.address, notes: c.notes,
+          photo_storage_path, photo_thumb_path, tags: ["imported"], created_by: user.id
+        });
+        if (error) throw error;
+        imported++;
+      } catch(err){ console.warn("Skipping a vCard entry:", err); failed++; }
+    }
+  }
+  el("vcf-file-input").value = "";
+  loadContacts();
+  alert(`Imported ${imported} contact${imported===1?"":"s"}${failed ? `, ${failed} failed` : ""}.`);
+});
+
+/* ---------------- Contact Picker API (Android Chrome only) ---------------- */
+el("import-phone-btn").addEventListener("click", async () => {
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  try{
+    const picked = await navigator.contacts.select(["name", "tel", "email"], { multiple: true });
+    let imported = 0;
+    for (const p of picked){
+      const full_name = (p.name && p.name[0]) || "Unnamed contact";
+      const { error } = await sb.from("contacts").insert({
+        full_name, phones: p.tel || [], emails: p.email || [], tags: ["from-phone"], created_by: user.id
+      });
+      if (!error) imported++;
+    }
+    loadContacts();
+    if (imported) alert(`Imported ${imported} contact${imported===1?"":"s"} from your phone.`);
+  } catch(err){
+    if (err.name !== "AbortError") alert("Import failed: " + err.message);
+  }
+});
+
+/* ---------------- vCard export ---------------- */
+function contactToVCard(c){
+  const lines = ["BEGIN:VCARD", "VERSION:3.0", `FN:${c.full_name}`];
+  (c.phones || []).forEach(p => lines.push(`TEL;TYPE=CELL:${p}`));
+  (c.emails || []).forEach(e => lines.push(`EMAIL:${e}`));
+  if (c.company) lines.push(`ORG:${c.company}`);
+  if (c.job_title) lines.push(`TITLE:${c.job_title}`);
+  if (c.birthday) lines.push(`BDAY:${c.birthday.replace(/-/g, "")}`);
+  if (c.address) lines.push(`ADR:;;${c.address};;;;`);
+  if (c.notes) lines.push(`NOTE:${c.notes.replace(/\n/g, "\\n")}`);
+  lines.push("END:VCARD");
+  return lines.join("\r\n");
+}
+function exportContacts(contacts, filename){
+  const vcf = contacts.map(contactToVCard).join("\r\n");
+  downloadBlob(new Blob([vcf], { type: "text/vcard" }), filename);
+}
+el("export-all-btn").addEventListener("click", () => {
+  if (!allContacts.length){ alert("No contacts to export."); return; }
+  exportContacts(allContacts, "contacts-export.vcf");
+});
+
+/* ---------------- Grid / search / filter / sort ---------------- */
+let allContacts = [];
+let activeFilter = "all";
+let activeTagFilter = "";
+let activeSort = "name";
+let selectMode = false;
+let selectedIds = new Set();
+
+async function loadContacts(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const { data, error } = await sb.from("contacts").select("*")
+    .eq("created_by", user.id)
+    .is("deleted_at", null)
+    .order("full_name");
+  if (error){ console.error(error); return; }
+  allContacts = data || [];
+  renderTagFilterOptions();
+  await applyFiltersAndRender();
+}
+
+function renderTagFilterOptions(){
+  const allTags = Array.from(new Set(allContacts.flatMap(c => c.tags || []))).sort();
+  const sel = el("tag-filter");
+  const current = sel.value;
+  sel.innerHTML = `<option value="">All tags</option>` + allTags.map(t => `<option value="${t}">${t}</option>`).join("");
+  sel.value = allTags.includes(current) ? current : "";
+}
+
+el("filter-all").addEventListener("click", () => { activeFilter = "all"; el("filter-all").classList.add("active"); el("filter-favorites").classList.remove("active"); applyFiltersAndRender(); });
+el("filter-favorites").addEventListener("click", () => { activeFilter = "favorites"; el("filter-favorites").classList.add("active"); el("filter-all").classList.remove("active"); applyFiltersAndRender(); });
+el("tag-filter").addEventListener("change", (e) => { activeTagFilter = e.target.value; applyFiltersAndRender(); });
+el("sort-select").addEventListener("change", (e) => { activeSort = e.target.value; applyFiltersAndRender(); });
+el("search-input").addEventListener("input", applyFiltersAndRender);
+
+async function applyFiltersAndRender(){
+  const q = el("search-input").value.trim().toLowerCase();
+  let contacts = allContacts.filter(c => {
+    if (activeFilter === "favorites" && !c.favorite) return false;
+    if (activeTagFilter && !(c.tags || []).includes(activeTagFilter)) return false;
+    if (!q) return true;
+    return c.full_name.toLowerCase().includes(q) ||
+      (c.phones || []).some(p => p.toLowerCase().includes(q)) ||
+      (c.emails || []).some(e => e.toLowerCase().includes(q)) ||
+      (c.company || "").toLowerCase().includes(q) ||
+      (c.tags || []).some(t => t.toLowerCase().includes(q));
+  });
+  contacts = contacts.slice().sort((a,b) => {
+    if (activeSort === "recent") return new Date(b.created_at) - new Date(a.created_at);
+    return a.full_name.localeCompare(b.full_name);
+  });
+  await renderGrid(contacts);
+}
+
+async function renderGrid(contacts){
+  const grid = el("grid");
+  if (!contacts.length){
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">No contacts match. Add one above, or clear your filters.</div>`;
+    return;
+  }
+
+  const withPhotos = await Promise.all(contacts.map(async (c) => {
+    let photoUrl = null;
+    const path = c.photo_thumb_path || c.photo_storage_path;
+    if (path){
+      const { data } = await sb.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL);
+      photoUrl = data?.signedUrl || null;
+    }
+    return { ...c, photoUrl };
+  }));
+
+  grid.innerHTML = withPhotos.map(c => {
+    const initials = c.full_name.split(/\s+/).map(w => w[0]).slice(0,2).join("").toUpperCase();
+    const primaryPhone = (c.phones || [])[0];
+    const primaryEmail = (c.emails || [])[0];
+    return `
+    <div class="card">
+      ${selectMode ? `<input type="checkbox" class="select-check" data-select="${c.id}" ${selectedIds.has(c.id) ? "checked" : ""} />` : ""}
+      <button class="fav-star ${c.favorite ? "active" : ""}" data-fav="${c.id}" title="Toggle favorite">★</button>
+      <div class="card-top">
+        <div class="avatar">${c.photoUrl ? `<img src="${c.photoUrl}" alt="" />` : initials}</div>
+        <div>
+          <div class="card-name">${c.full_name.replace(/</g,"&lt;")}</div>
+          ${c.job_title || c.company ? `<div class="card-sub">${[c.job_title, c.company].filter(Boolean).join(" · ").replace(/</g,"&lt;")}</div>` : ""}
+        </div>
+      </div>
+      <div class="card-body">
+        ${primaryPhone ? `<div class="contact-line">📞 <a href="tel:${primaryPhone.replace(/\s/g,"")}">${primaryPhone}</a></div>` : ""}
+        ${primaryEmail ? `<div class="contact-line">✉️ <a href="mailto:${primaryEmail}">${primaryEmail}</a></div>` : ""}
+        <div class="tag-pills">${(c.tags||[]).map(t=>`<span class="tag-pill">${t.replace(/</g,"&lt;")}</span>`).join("")}</div>
+        <div class="card-actions">
+          <button class="btn ghost" data-edit="${c.id}">Edit</button>
+          <button class="btn ghost" data-export="${c.id}">⬇ .vcf</button>
+          <button class="btn stamp" data-del="${c.id}">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+
+  grid.querySelectorAll("[data-fav]").forEach(b => b.addEventListener("click", async () => {
+    const c = allContacts.find(x => x.id === b.dataset.fav);
+    await sb.from("contacts").update({ favorite: !c.favorite }).eq("id", c.id);
+    loadContacts();
+  }));
+  grid.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => {
+    const c = allContacts.find(x => x.id === b.dataset.edit);
+    if (c) openContactModal(c);
+  }));
+  grid.querySelectorAll("[data-export]").forEach(b => b.addEventListener("click", () => {
+    const c = allContacts.find(x => x.id === b.dataset.export);
+    if (c) exportContacts([c], `${c.full_name.replace(/[^a-z0-9]+/gi,"-")}.vcf`);
+  }));
+  grid.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
+    const id = b.dataset.del;
+    await sb.from("contacts").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    loadContacts();
+    showUndoToast("Contact moved to trash.", async () => {
+      await sb.from("contacts").update({ deleted_at: null }).eq("id", id);
+      loadContacts();
+    });
+  }));
+  grid.querySelectorAll("[data-select]").forEach(cb => cb.addEventListener("change", () => {
+    if (cb.checked) selectedIds.add(cb.dataset.select); else selectedIds.delete(cb.dataset.select);
+    updateBulkBar();
+  }));
+}
+
+/* ---------------- Bulk select ---------------- */
+el("select-toggle").addEventListener("click", () => {
+  selectMode = !selectMode;
+  el("select-toggle").textContent = selectMode ? "Cancel" : "Select";
+  if (!selectMode) selectedIds.clear();
+  updateBulkBar();
+  applyFiltersAndRender();
+});
+function updateBulkBar(){
+  const bar = el("bulk-bar");
+  bar.classList.toggle("show", selectMode && selectedIds.size > 0);
+  el("bulk-count").textContent = `${selectedIds.size} selected`;
+}
+el("bulk-delete").addEventListener("click", async () => {
+  if (!selectedIds.size) return;
+  if (!confirm(`Delete ${selectedIds.size} contact(s)?`)) return;
+  const ids = Array.from(selectedIds);
+  await sb.from("contacts").update({ deleted_at: new Date().toISOString() }).in("id", ids);
+  selectedIds.clear(); selectMode = false;
+  el("select-toggle").textContent = "Select";
+  updateBulkBar();
+  loadContacts();
+  showUndoToast(`${ids.length} contacts deleted.`, async () => {
+    await sb.from("contacts").update({ deleted_at: null }).in("id", ids);
+    loadContacts();
+  });
+});
+el("bulk-tag").addEventListener("click", async () => {
+  if (!selectedIds.size) return;
+  const tag = prompt(`Add a tag to ${selectedIds.size} selected contact(s):`);
+  if (!tag || !tag.trim()) return;
+  const ids = Array.from(selectedIds);
+  for (const id of ids){
+    const c = allContacts.find(x => x.id === id);
+    if (!c) continue;
+    const tags = Array.from(new Set([...(c.tags || []), tag.trim()]));
+    await sb.from("contacts").update({ tags }).eq("id", id);
+  }
+  loadContacts();
+});
+el("bulk-export").addEventListener("click", () => {
+  if (!selectedIds.size) return;
+  const ids = Array.from(selectedIds);
+  const contacts = allContacts.filter(c => ids.includes(c.id));
+  exportContacts(contacts, `contacts-selected-${ids.length}.vcf`);
+});
+
+/* ---------------- Trash (30-day retention) ---------------- */
+async function purgeOldTrash(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: expired } = await sb.from("contacts").select("id, photo_storage_path, photo_thumb_path")
+    .eq("created_by", user.id).lt("deleted_at", cutoff);
+  if (expired && expired.length){
+    const paths = expired.flatMap(e => [e.photo_storage_path, e.photo_thumb_path].filter(Boolean));
+    if (paths.length) await sb.storage.from(BUCKET).remove(paths);
+    await sb.from("contacts").delete().in("id", expired.map(e => e.id));
+  }
+}
+async function openTrashModal(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const { data, error } = await sb.from("contacts").select("*")
+    .eq("created_by", user.id).not("deleted_at", "is", null).order("deleted_at", { ascending: false });
+  if (error){ alert("Couldn't load trash: " + error.message); return; }
+  renderTrashList(data || []);
+  el("trash-modal").classList.remove("hidden");
+}
+el("trash-btn").addEventListener("click", openTrashModal);
+el("trash-close").addEventListener("click", () => el("trash-modal").classList.add("hidden"));
+function renderTrashList(items){
+  const list = el("trash-list");
+  if (!items.length){ list.innerHTML = `<div class="hint" style="margin:0;">Trash is empty.</div>`; return; }
+  list.innerHTML = items.map(c => {
+    const deletedAt = new Date(c.deleted_at);
+    const daysLeft = Math.max(0, 30 - Math.floor((Date.now() - deletedAt.getTime()) / 86400000));
+    return `
+      <div class="trash-row">
+        <div class="trash-info">
+          <div class="trash-desc">${c.full_name.replace(/</g,"&lt;")}</div>
+          <div class="trash-meta">${daysLeft} day${daysLeft===1?"":"s"} left</div>
+        </div>
+        <button class="btn teal" data-restore="${c.id}">Restore</button>
+        <button class="btn stamp" data-purge="${c.id}" data-photo="${c.photo_storage_path||""}" data-thumb="${c.photo_thumb_path||""}">Delete forever</button>
+      </div>`;
+  }).join("");
+  list.querySelectorAll("[data-restore]").forEach(b => b.addEventListener("click", async () => {
+    await sb.from("contacts").update({ deleted_at: null }).eq("id", b.dataset.restore);
+    openTrashModal(); loadContacts();
+  }));
+  list.querySelectorAll("[data-purge]").forEach(b => b.addEventListener("click", async () => {
+    if (!confirm("Permanently delete this contact? This can't be undone.")) return;
+    const paths = [b.dataset.photo, b.dataset.thumb].filter(Boolean);
+    if (paths.length) await sb.storage.from(BUCKET).remove(paths);
+    await sb.from("contacts").delete().eq("id", b.dataset.purge);
+    openTrashModal();
+  }));
+}
+
+/* ---------------- Boot ---------------- */
+(async function boot(){
+  const { data } = await sb.auth.getSession();
+  if (data?.session) showApp();
+})();
+
+</script>
+</body>
+</html>

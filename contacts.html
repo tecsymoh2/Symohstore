@@ -15,6 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root{
     --paper:#c7a97b; --tag:#ecdfba; --ink:#221b12; --crate:#5a3a22; --crate-dark:#402a18;
@@ -112,7 +113,26 @@
 </head>
 <body>
 
+<div id="shared-screen" class="screen hidden">
+  <div style="width:100%; max-width:420px;">
+    <div class="gate-card" id="shared-gate">
+      <div class="gate-title" style="font-size:20px;">🔒 Shared contact</div>
+      <div class="gate-sub">Enter the access word to view</div>
+      <form id="shared-gate-form">
+        <div class="field">
+          <label>Password</label>
+          <input id="shared-password" type="password" required />
+        </div>
+        <button type="submit" class="btn stamp block">Unlock</button>
+        <div class="err hidden" id="shared-gate-err"></div>
+      </form>
+    </div>
+    <div id="shared-content" class="hidden card" style="text-align:left; padding:20px;"></div>
+  </div>
+</div>
+
 <div id="login-screen" class="screen">
+
   <form class="gate-card" id="login-form">
     <div class="gate-title">📇 <span style="color:var(--stamp)">Contacts</span></div>
     <div class="gate-sub">Symoh Store</div>
@@ -137,12 +157,22 @@
       <input id="search-input" placeholder="Search name, phone, email, tag…" />
     </div>
     <button class="btn teal" id="add-contact-btn">＋ Add</button>
-    <button class="btn ghost" id="import-vcf-btn">📥 Import .vcf</button>
-    <input type="file" id="vcf-file-input" accept=".vcf,text/vcard" multiple class="hidden" />
-    <button class="btn ghost hidden" id="import-phone-btn">📱 From phone</button>
     <button class="btn ghost" id="select-toggle">Select</button>
-    <button class="btn ghost" id="trash-btn">🗑 Trash</button>
-    <button class="btn ghost" id="export-all-btn">⬇ Export all</button>
+    <div style="position:relative;">
+      <button class="icon-btn" id="more-menu-btn" title="More">⋯ More</button>
+      <div id="more-menu" class="hidden" style="position:absolute; right:0; top:calc(100% + 6px); background:var(--tag); border:2px solid var(--ink); border-radius:4px; box-shadow:var(--shadow); z-index:40; min-width:220px; display:flex; flex-direction:column; gap:4px; padding:8px;">
+        <button class="btn ghost" id="import-vcf-btn" style="justify-content:flex-start;">📥 Import .vcf</button>
+        <button class="btn ghost" id="import-csv-btn" style="justify-content:flex-start;">📥 Import CSV</button>
+        <button class="btn ghost hidden" id="import-phone-btn" style="justify-content:flex-start;">📱 From phone</button>
+        <button class="btn ghost" id="export-all-vcf-btn" style="justify-content:flex-start;">⬇ Export all (.vcf)</button>
+        <button class="btn ghost" id="export-all-csv-btn" style="justify-content:flex-start;">⬇ Export all (CSV)</button>
+        <button class="btn ghost" id="manage-groups-btn" style="justify-content:flex-start;">📁 Manage groups</button>
+        <button class="btn ghost" id="find-duplicates-btn" style="justify-content:flex-start;">🧬 Find duplicates</button>
+        <button class="btn ghost" id="trash-btn" style="justify-content:flex-start;">🗑 Trash</button>
+      </div>
+    </div>
+    <input type="file" id="vcf-file-input" accept=".vcf,text/vcard" multiple class="hidden" />
+    <input type="file" id="csv-file-input" accept=".csv,text/csv" class="hidden" />
     <button class="btn ghost" id="signout-btn">Sign out</button>
   </div>
 
@@ -150,6 +180,11 @@
     <span id="bulk-count">0 selected</span>
     <div style="display:flex; gap:6px; flex-wrap:wrap;">
       <button class="btn ghost sm" id="bulk-tag" style="color:#fff; border-color:#fff;">＋ Tag</button>
+      <select id="bulk-group-select" style="border:1.5px solid #fff; border-radius:3px; padding:6px 8px; background:transparent; color:#fff; font-size:11px;">
+        <option value="">📁 Assign to group…</option>
+        <option value="__remove__">Remove from group</option>
+        <option value="__new__">＋ New group…</option>
+      </select>
       <button class="btn ghost sm" id="bulk-export" style="color:#fff; border-color:#fff;">⬇ Export</button>
       <button class="btn stamp sm" id="bulk-delete">Delete</button>
     </div>
@@ -159,6 +194,7 @@
     <button class="pill active" id="filter-all">All</button>
     <button class="pill" id="filter-favorites">⭐ Favorites</button>
     <select id="tag-filter"><option value="">All tags</option></select>
+    <select id="group-filter"><option value="">All groups</option></select>
     <select id="sort-select">
       <option value="name">Name (A–Z)</option>
       <option value="recent">Recently added</option>
@@ -195,6 +231,12 @@
       <button type="button" class="add-row-btn" id="add-email-btn">＋ Add email</button>
     </div>
 
+    <div class="multi-field" id="socials-field">
+      <label style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--crate-dark);">Social handles</label>
+      <div id="socials-list"></div>
+      <button type="button" class="add-row-btn" id="add-social-btn">＋ Add social handle</button>
+    </div>
+
     <div class="two-col">
       <div class="field">
         <label>Company</label>
@@ -211,13 +253,46 @@
         <input id="bday-input" type="date" />
       </div>
       <div class="field">
-        <label>Tags</label>
-        <input id="tags-input" placeholder="comma, separated" />
+        <label>Anniversary</label>
+        <input id="anniversary-input" type="date" />
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Relationship</label>
+        <select id="relationship-input">
+          <option value="">—</option>
+          <option value="spouse">Spouse</option>
+          <option value="partner">Partner</option>
+          <option value="child">Child</option>
+          <option value="parent">Parent</option>
+          <option value="sibling">Sibling</option>
+          <option value="friend">Friend</option>
+          <option value="colleague">Colleague</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Group</label>
+        <select id="group-select">
+          <option value="">No group</option>
+          <option value="__new__">＋ New group…</option>
+        </select>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Address (home)</label>
+        <input id="address-input" />
+      </div>
+      <div class="field">
+        <label>Address (work)</label>
+        <input id="address-work-input" />
       </div>
     </div>
     <div class="field">
-      <label>Address</label>
-      <input id="address-input" />
+      <label>Tags</label>
+      <input id="tags-input" placeholder="comma, separated" />
     </div>
     <div class="field">
       <label>Notes</label>
@@ -233,6 +308,49 @@
       <button type="button" class="btn ghost" id="contact-cancel">Cancel</button>
       <button type="button" class="btn stamp" id="contact-save">Save</button>
     </div>
+  </div>
+</div>
+
+<!-- ================= DETAIL VIEW MODAL ================= -->
+<div id="detail-modal" class="modal-back hidden">
+  <div class="modal" id="detail-modal-body"></div>
+</div>
+
+<!-- ================= MANAGE GROUPS MODAL ================= -->
+<div id="groups-modal" class="modal-back hidden">
+  <div class="modal">
+    <div class="display" style="font-size:18px; text-align:center;">Manage groups</div>
+    <div id="groups-list" style="display:flex; flex-direction:column; gap:8px; margin:16px 0; max-height:50vh; overflow:auto;"></div>
+    <button type="button" class="btn ghost block" id="groups-close">Close</button>
+  </div>
+</div>
+
+<!-- ================= FIND DUPLICATES MODAL ================= -->
+<div id="duplicates-modal" class="modal-back hidden">
+  <div class="modal" style="max-width:520px;">
+    <div class="display" style="font-size:18px; text-align:center;">Possible duplicates</div>
+    <div class="hint" style="margin-top:6px; text-align:center;">Matched by name, or by a shared phone/email.</div>
+    <div id="duplicates-list" style="display:flex; flex-direction:column; gap:10px; margin:16px 0; max-height:55vh; overflow:auto;"></div>
+    <button type="button" class="btn ghost block" id="duplicates-close">Close</button>
+  </div>
+</div>
+
+<!-- ================= SHARE CONTACT MODAL ================= -->
+<div id="share-modal" class="modal-back hidden">
+  <div class="modal" style="text-align:center;">
+    <div class="display" style="font-size:18px;">Share contact</div>
+    <div class="hint" style="margin:8px 0;">Photos are never shared — only the info fields below. Set a password; anyone with the link needs it to view.</div>
+    <div class="field" style="text-align:left;">
+      <label>Share password</label>
+      <input id="share-password-input" placeholder="Choose a password" />
+    </div>
+    <button type="button" class="btn stamp block" id="share-generate-btn">Generate / update link</button>
+    <div id="share-result" class="hidden" style="margin-top:16px;">
+      <div class="code mono" style="font-size:14px; background:var(--ink); color:var(--tag); padding:10px; border-radius:3px; word-break:break-all;" id="share-link-text"></div>
+      <div id="share-qr" style="width:150px; height:150px; margin:14px auto; background:#fff; display:flex; align-items:center; justify-content:center;"></div>
+      <button type="button" class="btn teal block" id="share-copy-btn">Copy link</button>
+    </div>
+    <button type="button" class="btn ghost block" id="share-close" style="margin-top:10px;">Close</button>
   </div>
 </div>
 
@@ -257,6 +375,7 @@ const USERNAME_EMAIL_MAP = { "symoh": "symoh@symohstore.app" };
 const SIGNED_URL_TTL = 3600;
 
 const el = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
 
 if ("serviceWorker" in navigator){
   window.addEventListener("load", () => {
@@ -264,6 +383,66 @@ if ("serviceWorker" in navigator){
       .catch((err) => console.warn("Contacts SW registration failed:", err));
   });
 }
+
+/* ---------------- OVERFLOW "MORE" MENU ---------------- */
+el("more-menu-btn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  el("more-menu").classList.toggle("hidden");
+});
+document.addEventListener("click", (e) => {
+  const menu = el("more-menu");
+  if (!menu || menu.classList.contains("hidden")) return;
+  if (!menu.contains(e.target) && e.target !== el("more-menu-btn")) menu.classList.add("hidden");
+});
+el("more-menu")?.querySelectorAll("button").forEach((b) => {
+  b.addEventListener("click", () => el("more-menu").classList.add("hidden"));
+});
+
+/* ---------------- SHARED CONTACT VIEW (public, password-gated) ---------------- */
+let pendingShareId = null;
+function initSharedView(shareId){
+  el("login-screen").classList.add("hidden");
+  el("shared-screen").classList.remove("hidden");
+  pendingShareId = shareId;
+}
+el("shared-gate-form")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  el("shared-gate-err").classList.add("hidden");
+  const pw = el("shared-password").value;
+  const { data, error } = await sb.rpc("get_shared_contact", { p_share_id: pendingShareId, p_password: pw });
+  if (error){ el("shared-gate-err").textContent = "Something went wrong — try again."; el("shared-gate-err").classList.remove("hidden"); return; }
+  if (data.status === "ok"){ renderSharedContact(data.contact); return; }
+  if (data.status === "locked"){ el("shared-gate-err").textContent = `Too many attempts — locked for about ${data.retry_after_minutes} minutes.`; }
+  else if (data.status === "wrong_password"){ el("shared-gate-err").textContent = typeof data.attempts_left === "number" && data.attempts_left <= 2 ? `Wrong password. ${data.attempts_left} attempt(s) left.` : "Wrong password."; }
+  else { el("shared-gate-err").textContent = "This contact link doesn't exist or was removed."; }
+  el("shared-gate-err").classList.remove("hidden");
+});
+function renderSharedContact(c){
+  el("shared-gate").classList.add("hidden");
+  const box = el("shared-content");
+  box.classList.remove("hidden");
+  const initials = c.full_name.split(/\s+/).map(w => w[0]).slice(0,2).join("").toUpperCase();
+  box.innerHTML = `
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:14px;">
+      <div class="avatar" style="width:64px; height:64px; font-size:24px;">${initials}</div>
+      <div>
+        <div class="card-name" style="font-size:19px;">${c.full_name.replace(/</g,"&lt;")}</div>
+        ${c.job_title || c.company ? `<div class="card-sub">${[c.job_title,c.company].filter(Boolean).join(" · ")}</div>` : ""}
+      </div>
+    </div>
+    ${(c.phones||[]).map(p=>`<div class="contact-line">📞 <a href="tel:${p.replace(/\s/g,"")}">${p}</a></div>`).join("")}
+    ${(c.emails||[]).map(eAddr=>`<div class="contact-line">✉️ <a href="mailto:${eAddr}">${eAddr}</a></div>`).join("")}
+    ${(c.social_handles||[]).map(s=>`<div class="contact-line">🔗 ${s.platform}: ${s.handle}</div>`).join("")}
+    ${c.address ? `<div class="contact-line">🏠 ${c.address}</div>` : ""}
+    ${c.address_work ? `<div class="contact-line">🏢 ${c.address_work}</div>` : ""}
+    ${c.birthday ? `<div class="contact-line">🎂 ${c.birthday}</div>` : ""}
+    ${c.notes ? `<div class="hint" style="margin-top:10px;">${c.notes.replace(/</g,"&lt;")}</div>` : ""}
+  `;
+}
+(function routeOnLoad(){
+  const shareParam = params.get("share");
+  if (shareParam){ initSharedView(shareParam); return; }
+})();
 
 el("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -298,10 +477,9 @@ async function showApp(){
   el("login-screen").classList.add("hidden");
   el("app-screen").classList.remove("hidden");
   startInactivityWatch();
-  if ("contacts" in navigator && "ContactsManager" in window){
-    el("import-phone-btn").classList.remove("hidden");
-  }
+  el("import-phone-btn").classList.remove("hidden");
   await purgeOldTrash();
+  await loadGroups();
   loadContacts();
 }
 
@@ -383,6 +561,106 @@ function getMultiValues(listEl){
 el("add-phone-btn").addEventListener("click", () => addMultiRow(el("phones-list"), "", "555-0100"));
 el("add-email-btn").addEventListener("click", () => addMultiRow(el("emails-list"), "", "name@example.com"));
 
+/* ---------------- Social handles (platform + handle pairs) ---------------- */
+function renderSocialsField(listEl, values){
+  listEl.innerHTML = "";
+  (values && values.length ? values : [{ platform: "", handle: "" }]).forEach((v) => addSocialRow(listEl, v));
+}
+function addSocialRow(listEl, value){
+  const row = document.createElement("div");
+  row.className = "multi-row";
+  row.innerHTML = `<input value="${(value?.platform||"").replace(/"/g,"&quot;")}" placeholder="Instagram" style="max-width:110px;" data-role="platform" />
+    <input value="${(value?.handle||"").replace(/"/g,"&quot;")}" placeholder="@handle" data-role="handle" />
+    <button type="button" title="Remove">✕</button>`;
+  row.querySelector("button").addEventListener("click", () => {
+    if (listEl.children.length > 1) row.remove();
+    else { row.querySelectorAll("input").forEach(i => i.value = ""); }
+  });
+  listEl.appendChild(row);
+}
+function getSocialValues(listEl){
+  return Array.from(listEl.children).map(row => ({
+    platform: row.querySelector('[data-role="platform"]').value.trim(),
+    handle: row.querySelector('[data-role="handle"]').value.trim()
+  })).filter(s => s.platform || s.handle);
+}
+el("add-social-btn").addEventListener("click", () => addSocialRow(el("socials-list"), null));
+
+/* ---------------- Groups ---------------- */
+let userGroups = [];
+async function loadGroups(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return;
+  const { data, error } = await sb.from("contact_groups").select("*").eq("created_by", user.id).order("name");
+  if (error){ console.error(error); return; }
+  userGroups = data || [];
+  renderGroupOptions();
+}
+function renderGroupOptions(){
+  const opts = userGroups.map(g => `<option value="${g.id}">${g.name.replace(/</g,"&lt;")}</option>`).join("");
+  const modalSel = el("group-select");
+  const modalCurrent = modalSel.value;
+  modalSel.innerHTML = `<option value="">No group</option>${opts}<option value="__new__">＋ New group…</option>`;
+  modalSel.value = userGroups.some(g => g.id === modalCurrent) ? modalCurrent : "";
+
+  const filterSel = el("group-filter");
+  const filterCurrent = filterSel.value;
+  filterSel.innerHTML = `<option value="">All groups</option>${opts}`;
+  filterSel.value = userGroups.some(g => g.id === filterCurrent) ? filterCurrent : "";
+
+  const bulkSel = el("bulk-group-select");
+  if (bulkSel){
+    bulkSel.innerHTML = `<option value="">📁 Assign to group…</option>${opts}<option value="__remove__">Remove from group</option><option value="__new__">＋ New group…</option>`;
+    bulkSel.value = "";
+  }
+}
+async function createGroupFlow(selectEl){
+  const name = prompt("Name this group:");
+  if (!name || !name.trim()){ selectEl.value = ""; return; }
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  const { data, error } = await sb.from("contact_groups").insert({ name: name.trim(), created_by: user.id }).select().single();
+  if (error){ alert("Couldn't create group: " + error.message); selectEl.value = ""; return; }
+  await loadGroups();
+  selectEl.value = data.id;
+}
+el("group-select").addEventListener("change", (e) => { if (e.target.value === "__new__") createGroupFlow(e.target); });
+el("group-filter").addEventListener("change", applyFiltersAndRender);
+function groupNameFor(id){ const g = userGroups.find(x => x.id === id); return g ? g.name : null; }
+
+el("manage-groups-btn")?.addEventListener("click", () => {
+  renderGroupsManageList();
+  el("groups-modal").classList.remove("hidden");
+});
+el("groups-close")?.addEventListener("click", () => el("groups-modal").classList.add("hidden"));
+function renderGroupsManageList(){
+  const list = el("groups-list");
+  if (!userGroups.length){ list.innerHTML = `<div class="hint" style="margin:0;">No groups yet — create one from the Add/Edit form.</div>`; return; }
+  list.innerHTML = userGroups.map(g => `
+    <div class="trash-row">
+      <div class="trash-info">
+        <div class="trash-desc">${g.name.replace(/</g,"&lt;")}</div>
+        <div class="trash-meta">${allContacts.filter(c => c.group_id === g.id).length} contact(s)</div>
+      </div>
+      <button class="btn teal" data-rename-group="${g.id}">Rename</button>
+      <button class="btn stamp" data-delete-group="${g.id}">Delete</button>
+    </div>`).join("");
+  list.querySelectorAll("[data-rename-group]").forEach(b => b.addEventListener("click", async () => {
+    const g = userGroups.find(x => x.id === b.dataset.renameGroup);
+    const newName = prompt("Rename group:", g.name);
+    if (!newName || !newName.trim() || newName.trim() === g.name) return;
+    await sb.from("contact_groups").update({ name: newName.trim() }).eq("id", g.id);
+    await loadGroups(); renderGroupsManageList(); applyFiltersAndRender();
+  }));
+  list.querySelectorAll("[data-delete-group]").forEach(b => b.addEventListener("click", async () => {
+    const g = userGroups.find(x => x.id === b.dataset.deleteGroup);
+    if (!confirm(`Delete group "${g.name}"? Contacts inside keep their info but lose the group tag.`)) return;
+    await sb.from("contact_groups").delete().eq("id", g.id);
+    await loadGroups(); renderGroupsManageList(); loadContacts();
+  }));
+}
+
 /* ---------------- Add / Edit contact modal ---------------- */
 let editingContactId = null;
 let pendingPhotoFile = null;
@@ -395,11 +673,16 @@ function openContactModal(contact){
   el("name-input").value = contact?.full_name || "";
   renderMultiField(el("phones-list"), contact?.phones || [], "555-0100");
   renderMultiField(el("emails-list"), contact?.emails || [], "name@example.com");
+  renderSocialsField(el("socials-list"), contact?.social_handles || []);
   el("company-input").value = contact?.company || "";
   el("title-input").value = contact?.job_title || "";
   el("bday-input").value = contact?.birthday || "";
+  el("anniversary-input").value = contact?.anniversary || "";
+  el("relationship-input").value = contact?.relationship || "";
+  el("group-select").value = contact?.group_id || "";
   el("tags-input").value = (contact?.tags || []).join(", ");
   el("address-input").value = contact?.address || "";
+  el("address-work-input").value = contact?.address_work || "";
   el("notes-input").value = contact?.notes || "";
   el("favorite-input").checked = !!contact?.favorite;
   el("contact-progress").classList.add("hidden");
@@ -421,15 +704,32 @@ el("contact-save").addEventListener("click", async () => {
   progress.textContent = "Saving…";
 
   try{
+    const phones = getMultiValues(el("phones-list"));
+    const emails = getMultiValues(el("emails-list"));
+
+    if (!editingContactId){
+      const dupe = findDuplicate(full_name, phones, emails);
+      if (dupe && !confirm(`"${dupe.full_name}" looks like a possible duplicate (matching name, phone, or email). Add anyway?`)){
+        progress.classList.add("hidden");
+        return;
+      }
+    }
+
+    const groupSel = el("group-select").value;
     const payload = {
       full_name,
-      phones: getMultiValues(el("phones-list")),
-      emails: getMultiValues(el("emails-list")),
+      phones,
+      emails,
+      social_handles: getSocialValues(el("socials-list")),
       company: el("company-input").value.trim() || null,
       job_title: el("title-input").value.trim() || null,
       birthday: el("bday-input").value || null,
+      anniversary: el("anniversary-input").value || null,
+      relationship: el("relationship-input").value || null,
+      group_id: (groupSel && groupSel !== "__new__") ? groupSel : null,
       tags: el("tags-input").value.split(",").map(t => t.trim()).filter(Boolean),
       address: el("address-input").value.trim() || null,
+      address_work: el("address-work-input").value.trim() || null,
       notes: el("notes-input").value.trim() || null,
       favorite: el("favorite-input").checked,
       updated_at: new Date().toISOString()
@@ -575,25 +875,49 @@ el("vcf-file-input").addEventListener("change", async () => {
   alert(`Imported ${imported} contact${imported===1?"":"s"}${failed ? `, ${failed} failed` : ""}.`);
 });
 
-/* ---------------- Contact Picker API (Android Chrome only) ---------------- */
+/* ---------------- Contact Picker API (finds phone contacts; the picker itself IS the permission prompt) ---------------- */
+function contactPickerSupported(){
+  return "contacts" in navigator && typeof navigator.contacts?.select === "function";
+}
 el("import-phone-btn").addEventListener("click", async () => {
+  if (!contactPickerSupported()){
+    alert(
+      "Your browser/device can't find phone contacts directly — this feature only works in Chrome on Android right now (not Safari, not desktop browsers, not iOS).\n\n" +
+      "Instead, export your contacts to a vCard (.vcf) file from your phone's Contacts app and use \"Import .vcf\" here."
+    );
+    return;
+  }
   const { data: userData } = await sb.auth.getUser();
   const user = userData?.user;
   if (!user) return;
+
   try{
+    // navigator.contacts.select() itself pops the browser's native contact picker —
+    // that picker prompt IS the permission request; there's no separate permission to pre-request.
     const picked = await navigator.contacts.select(["name", "tel", "email"], { multiple: true });
-    let imported = 0;
+    let imported = 0, skippedDupes = 0;
     for (const p of picked){
       const full_name = (p.name && p.name[0]) || "Unnamed contact";
+      const phones = p.tel || [];
+      const emails = p.email || [];
+      const dupe = findDuplicate(full_name, phones, emails);
+      if (dupe){ skippedDupes++; continue; }
       const { error } = await sb.from("contacts").insert({
-        full_name, phones: p.tel || [], emails: p.email || [], tags: ["from-phone"], created_by: user.id
+        full_name, phones, emails, tags: ["from-phone"], created_by: user.id
       });
       if (!error) imported++;
     }
     loadContacts();
-    if (imported) alert(`Imported ${imported} contact${imported===1?"":"s"} from your phone.`);
+    if (imported || skippedDupes){
+      alert(`Imported ${imported} contact${imported===1?"":"s"} from your phone${skippedDupes ? `, skipped ${skippedDupes} likely duplicate(s)` : ""}.`);
+    }
   } catch(err){
-    if (err.name !== "AbortError") alert("Import failed: " + err.message);
+    if (err.name === "AbortError") return; // user closed the picker — not an error
+    if (err.name === "NotAllowedError" || err.name === "SecurityError"){
+      alert("Permission to access contacts was denied. If you dismissed the prompt, tap \"From phone\" again to be asked once more.");
+      return;
+    }
+    alert("Import failed: " + (err.message || err));
   }
 });
 
@@ -614,10 +938,200 @@ function exportContacts(contacts, filename){
   const vcf = contacts.map(contactToVCard).join("\r\n");
   downloadBlob(new Blob([vcf], { type: "text/vcard" }), filename);
 }
-el("export-all-btn").addEventListener("click", () => {
+el("export-all-vcf-btn").addEventListener("click", () => {
   if (!allContacts.length){ alert("No contacts to export."); return; }
   exportContacts(allContacts, "contacts-export.vcf");
 });
+
+/* ---------------- CSV import / export ---------------- */
+function csvEscape(v){
+  const s = (v ?? "").toString();
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function contactsToCsv(contacts){
+  const headers = ["Full Name","Phones","Emails","Company","Job Title","Birthday","Anniversary","Relationship","Address Home","Address Work","Social Handles","Tags","Notes"];
+  const rows = contacts.map(c => [
+    c.full_name,
+    (c.phones||[]).join("; "),
+    (c.emails||[]).join("; "),
+    c.company || "",
+    c.job_title || "",
+    c.birthday || "",
+    c.anniversary || "",
+    c.relationship || "",
+    c.address || "",
+    c.address_work || "",
+    (c.social_handles||[]).map(s => `${s.platform}:${s.handle}`).join("; "),
+    (c.tags||[]).join("; "),
+    c.notes || ""
+  ]);
+  return [headers, ...rows].map(row => row.map(csvEscape).join(",")).join("\r\n");
+}
+el("export-all-csv-btn").addEventListener("click", () => {
+  if (!allContacts.length){ alert("No contacts to export."); return; }
+  downloadBlob(new Blob([contactsToCsv(allContacts)], { type: "text/csv" }), "contacts-export.csv");
+});
+
+function parseCsvText(text){
+  // Minimal RFC4180-ish parser: handles quoted fields with commas/newlines/escaped quotes.
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++){
+    const ch = text[i], next = text[i+1];
+    if (inQuotes){
+      if (ch === '"' && next === '"'){ field += '"'; i++; }
+      else if (ch === '"'){ inQuotes = false; }
+      else field += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ","){ row.push(field); field = ""; }
+      else if (ch === "\n"){ row.push(field); rows.push(row); row = []; field = ""; }
+      else if (ch === "\r"){ /* skip */ }
+      else field += ch;
+    }
+  }
+  if (field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ""));
+}
+function findHeaderIndex(headers, candidates){
+  for (const cand of candidates){
+    const idx = headers.findIndex(h => h.toLowerCase().trim() === cand);
+    if (idx !== -1) return idx;
+  }
+  // partial/contains match as a fallback (handles Google's "E-mail 1 - Value" style headers)
+  for (const cand of candidates){
+    const idx = headers.findIndex(h => h.toLowerCase().includes(cand));
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+function parseContactsCsv(text){
+  const rows = parseCsvText(text);
+  if (!rows.length) return [];
+  const headers = rows[0].map(h => h.toLowerCase().trim());
+  const iName = findHeaderIndex(headers, ["full name","name"]);
+  const iFirst = findHeaderIndex(headers, ["given name","first name"]);
+  const iLast = findHeaderIndex(headers, ["family name","last name"]);
+  const iPhones = headers.map((h,i) => (h.includes("phone")) ? i : -1).filter(i => i !== -1);
+  const iEmails = headers.map((h,i) => (h.includes("e-mail") || h.includes("email")) ? i : -1).filter(i => i !== -1);
+  const iCompany = findHeaderIndex(headers, ["company","organization"]);
+  const iTitle = findHeaderIndex(headers, ["job title","title"]);
+  const iBday = findHeaderIndex(headers, ["birthday"]);
+  const iNotes = findHeaderIndex(headers, ["notes"]);
+  const iAddress = findHeaderIndex(headers, ["address"]);
+  const iTags = findHeaderIndex(headers, ["tags","labels","group membership"]);
+
+  return rows.slice(1).map(r => {
+    let full_name = iName !== -1 ? r[iName] : "";
+    if (!full_name){
+      full_name = [iFirst !== -1 ? r[iFirst] : "", iLast !== -1 ? r[iLast] : ""].filter(Boolean).join(" ");
+    }
+    const phones = iPhones.map(i => r[i]).filter(Boolean).flatMap(v => v.split(/;|,(?=\S)/).map(s => s.trim())).filter(Boolean);
+    const emails = iEmails.map(i => r[i]).filter(Boolean).flatMap(v => v.split(/;|,(?=\S)/).map(s => s.trim())).filter(Boolean);
+    return {
+      full_name: full_name || "Unnamed contact",
+      phones, emails,
+      company: iCompany !== -1 ? (r[iCompany] || null) : null,
+      job_title: iTitle !== -1 ? (r[iTitle] || null) : null,
+      birthday: iBday !== -1 ? (normalizeBday(r[iBday]) || null) : null,
+      address: iAddress !== -1 ? (r[iAddress] || null) : null,
+      notes: iNotes !== -1 ? (r[iNotes] || null) : null,
+      tags: iTags !== -1 && r[iTags] ? r[iTags].split(/;|,/).map(t => t.trim()).filter(Boolean) : []
+    };
+  });
+}
+el("import-csv-btn").addEventListener("click", () => el("csv-file-input").click());
+el("csv-file-input").addEventListener("change", async () => {
+  const file = el("csv-file-input").files[0];
+  if (!file) return;
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user){ alert("Session expired, please log in again."); return; }
+
+  const text = await file.text();
+  const parsed = parseContactsCsv(text);
+  let imported = 0, skippedDupes = 0;
+  for (const c of parsed){
+    const dupe = findDuplicate(c.full_name, c.phones, c.emails);
+    if (dupe){ skippedDupes++; continue; }
+    const { error } = await sb.from("contacts").insert({
+      full_name: c.full_name, phones: c.phones, emails: c.emails, company: c.company,
+      job_title: c.job_title, birthday: c.birthday, address: c.address, notes: c.notes,
+      tags: [...(c.tags||[]), "imported"], created_by: user.id
+    });
+    if (!error) imported++;
+  }
+  el("csv-file-input").value = "";
+  loadContacts();
+  alert(`Imported ${imported} contact${imported===1?"":"s"}${skippedDupes ? `, skipped ${skippedDupes} likely duplicate(s)` : ""}.`);
+});
+
+/* ---------------- Duplicate detection ---------------- */
+function findDuplicate(full_name, phones, emails){
+  const nameLower = (full_name || "").toLowerCase().trim();
+  return allContacts.find(c => {
+    if (c.full_name.toLowerCase().trim() === nameLower && nameLower) return true;
+    if (phones.some(p => (c.phones||[]).includes(p))) return true;
+    if (emails.some(eAddr => (c.emails||[]).includes(eAddr))) return true;
+    return false;
+  });
+}
+el("find-duplicates-btn")?.addEventListener("click", () => {
+  const groups = [];
+  const seen = new Set();
+  for (let i = 0; i < allContacts.length; i++){
+    if (seen.has(allContacts[i].id)) continue;
+    const a = allContacts[i];
+    const matches = allContacts.filter((b, j) => j !== i && !seen.has(b.id) && (
+      b.full_name.toLowerCase().trim() === a.full_name.toLowerCase().trim() ||
+      (a.phones||[]).some(p => (b.phones||[]).includes(p)) ||
+      (a.emails||[]).some(eAddr => (b.emails||[]).includes(eAddr))
+    ));
+    if (matches.length){
+      const group = [a, ...matches];
+      group.forEach(c => seen.add(c.id));
+      groups.push(group);
+    }
+  }
+  renderDuplicatesList(groups);
+  el("duplicates-modal").classList.remove("hidden");
+});
+el("duplicates-close")?.addEventListener("click", () => el("duplicates-modal").classList.add("hidden"));
+function renderDuplicatesList(groups){
+  const list = el("duplicates-list");
+  if (!groups.length){ list.innerHTML = `<div class="hint" style="margin:0;">No likely duplicates found.</div>`; return; }
+  list.innerHTML = groups.map((group, gi) => `
+    <div class="trash-row" style="flex-direction:column; align-items:stretch; gap:8px;">
+      <div class="trash-desc" style="white-space:normal;">${group.map(c => c.full_name.replace(/</g,"&lt;")).join(" ↔ ")}</div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn teal sm" data-merge-group="${gi}">Merge into one</button>
+      </div>
+    </div>`).join("");
+  list.querySelectorAll("[data-merge-group]").forEach(b => b.addEventListener("click", async () => {
+    const group = groups[Number(b.dataset.mergeGroup)];
+    await mergeContacts(group);
+    el("find-duplicates-btn").click();
+  }));
+}
+async function mergeContacts(group){
+  const survivor = group.reduce((oldest, c) => new Date(c.created_at) < new Date(oldest.created_at) ? c : oldest, group[0]);
+  const others = group.filter(c => c.id !== survivor.id);
+  const merged = {
+    phones: Array.from(new Set(group.flatMap(c => c.phones || []))),
+    emails: Array.from(new Set(group.flatMap(c => c.emails || []))),
+    tags: Array.from(new Set(group.flatMap(c => c.tags || []))),
+    social_handles: group.flatMap(c => c.social_handles || []).filter((s,i,arr) => arr.findIndex(x=>x.platform===s.platform && x.handle===s.handle)===i),
+    company: survivor.company || others.map(c=>c.company).find(Boolean) || null,
+    job_title: survivor.job_title || others.map(c=>c.job_title).find(Boolean) || null,
+    address: survivor.address || others.map(c=>c.address).find(Boolean) || null,
+    address_work: survivor.address_work || others.map(c=>c.address_work).find(Boolean) || null,
+    notes: [survivor.notes, ...others.map(c=>c.notes)].filter(Boolean).join(" | ") || null,
+    favorite: group.some(c => c.favorite)
+  };
+  await sb.from("contacts").update(merged).eq("id", survivor.id);
+  await sb.from("contacts").update({ deleted_at: new Date().toISOString() }).in("id", others.map(c => c.id));
+  loadContacts();
+}
 
 /* ---------------- Grid / search / filter / sort ---------------- */
 let allContacts = [];
@@ -657,9 +1171,11 @@ el("search-input").addEventListener("input", applyFiltersAndRender);
 
 async function applyFiltersAndRender(){
   const q = el("search-input").value.trim().toLowerCase();
+  const groupFilterVal = el("group-filter").value;
   let contacts = allContacts.filter(c => {
     if (activeFilter === "favorites" && !c.favorite) return false;
     if (activeTagFilter && !(c.tags || []).includes(activeTagFilter)) return false;
+    if (groupFilterVal && c.group_id !== groupFilterVal) return false;
     if (!q) return true;
     return c.full_name.toLowerCase().includes(q) ||
       (c.phones || []).some(p => p.toLowerCase().includes(q)) ||
@@ -695,11 +1211,12 @@ async function renderGrid(contacts){
     const initials = c.full_name.split(/\s+/).map(w => w[0]).slice(0,2).join("").toUpperCase();
     const primaryPhone = (c.phones || [])[0];
     const primaryEmail = (c.emails || [])[0];
+    const groupName = c.group_id ? groupNameFor(c.group_id) : null;
     return `
     <div class="card">
       ${selectMode ? `<input type="checkbox" class="select-check" data-select="${c.id}" ${selectedIds.has(c.id) ? "checked" : ""} />` : ""}
       <button class="fav-star ${c.favorite ? "active" : ""}" data-fav="${c.id}" title="Toggle favorite">★</button>
-      <div class="card-top">
+      <div class="card-top" style="cursor:pointer;" data-view="${c.id}">
         <div class="avatar">${c.photoUrl ? `<img src="${c.photoUrl}" alt="" />` : initials}</div>
         <div>
           <div class="card-name">${c.full_name.replace(/</g,"&lt;")}</div>
@@ -709,9 +1226,12 @@ async function renderGrid(contacts){
       <div class="card-body">
         ${primaryPhone ? `<div class="contact-line">📞 <a href="tel:${primaryPhone.replace(/\s/g,"")}">${primaryPhone}</a></div>` : ""}
         ${primaryEmail ? `<div class="contact-line">✉️ <a href="mailto:${primaryEmail}">${primaryEmail}</a></div>` : ""}
+        ${groupName ? `<div class="tag-pill" style="align-self:flex-start;">📁 ${groupName.replace(/</g,"&lt;")}</div>` : ""}
         <div class="tag-pills">${(c.tags||[]).map(t=>`<span class="tag-pill">${t.replace(/</g,"&lt;")}</span>`).join("")}</div>
         <div class="card-actions">
+          <button class="btn ghost" data-view-btn="${c.id}">View</button>
           <button class="btn ghost" data-edit="${c.id}">Edit</button>
+          <button class="btn teal" data-share="${c.id}">Share</button>
           <button class="btn ghost" data-export="${c.id}">⬇ .vcf</button>
           <button class="btn stamp" data-del="${c.id}">Delete</button>
         </div>
@@ -719,6 +1239,12 @@ async function renderGrid(contacts){
     </div>`;
   }).join("");
 
+  grid.querySelectorAll("[data-view], [data-view-btn]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.view || b.dataset.viewBtn;
+    const c = withPhotos.find(x => x.id === id);
+    if (c) openDetailModal(c);
+  }));
+  grid.querySelectorAll("[data-share]").forEach(b => b.addEventListener("click", () => openShareModal(b.dataset.share)));
   grid.querySelectorAll("[data-fav]").forEach(b => b.addEventListener("click", async () => {
     const c = allContacts.find(x => x.id === b.dataset.fav);
     await sb.from("contacts").update({ favorite: !c.favorite }).eq("id", c.id);
@@ -746,6 +1272,74 @@ async function renderGrid(contacts){
     updateBulkBar();
   }));
 }
+
+/* ---------------- Detail view modal ---------------- */
+function openDetailModal(c){
+  const initials = c.full_name.split(/\s+/).map(w => w[0]).slice(0,2).join("").toUpperCase();
+  const groupName = c.group_id ? groupNameFor(c.group_id) : null;
+  el("detail-modal-body").innerHTML = `
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:14px;">
+      <div class="avatar" style="width:72px; height:72px; font-size:26px;">${c.photoUrl ? `<img src="${c.photoUrl}" alt="" />` : initials}</div>
+      <div>
+        <div class="card-name" style="font-size:20px;">${c.full_name.replace(/</g,"&lt;")}</div>
+        ${c.job_title || c.company ? `<div class="card-sub">${[c.job_title,c.company].filter(Boolean).join(" · ")}</div>` : ""}
+        ${groupName ? `<div class="tag-pill" style="margin-top:4px; display:inline-block;">📁 ${groupName}</div>` : ""}
+      </div>
+    </div>
+    ${(c.phones||[]).map(p=>`<div class="contact-line">📞 <a href="tel:${p.replace(/\s/g,"")}">${p}</a></div>`).join("")}
+    ${(c.emails||[]).map(eAddr=>`<div class="contact-line">✉️ <a href="mailto:${eAddr}">${eAddr}</a></div>`).join("")}
+    ${(c.social_handles||[]).map(s=>`<div class="contact-line">🔗 ${s.platform}: ${s.handle}</div>`).join("")}
+    ${c.address ? `<div class="contact-line">🏠 ${c.address}</div>` : ""}
+    ${c.address_work ? `<div class="contact-line">🏢 ${c.address_work}</div>` : ""}
+    ${c.birthday ? `<div class="contact-line">🎂 Birthday: ${c.birthday}</div>` : ""}
+    ${c.anniversary ? `<div class="contact-line">💍 Anniversary: ${c.anniversary}</div>` : ""}
+    ${c.relationship ? `<div class="contact-line">👤 ${c.relationship}</div>` : ""}
+    <div class="tag-pills" style="margin-top:8px;">${(c.tags||[]).map(t=>`<span class="tag-pill">${t.replace(/</g,"&lt;")}</span>`).join("")}</div>
+    ${c.notes ? `<div class="hint" style="margin-top:12px; white-space:pre-wrap;">${c.notes.replace(/</g,"&lt;")}</div>` : ""}
+    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+      <button type="button" class="btn ghost" id="detail-close-btn">Close</button>
+    </div>
+  `;
+  el("detail-modal-body").querySelector("#detail-close-btn").addEventListener("click", () => el("detail-modal").classList.add("hidden"));
+  el("detail-modal").classList.remove("hidden");
+}
+el("detail-modal")?.addEventListener("click", (e) => { if (e.target.id === "detail-modal") el("detail-modal").classList.add("hidden"); });
+
+/* ---------------- Share contact modal ---------------- */
+let sharingContactId = null;
+function makeShareCode(){ return Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6); }
+async function openShareModal(contactId){
+  sharingContactId = contactId;
+  el("share-password-input").value = "";
+  el("share-result").classList.add("hidden");
+  el("share-modal").classList.remove("hidden");
+}
+el("share-close")?.addEventListener("click", () => el("share-modal").classList.add("hidden"));
+el("share-generate-btn")?.addEventListener("click", async () => {
+  const pw = el("share-password-input").value.trim();
+  if (!pw){ alert("Choose a password first."); return; }
+  const c = allContacts.find(x => x.id === sharingContactId);
+  if (!c) return;
+  let shareId = c.share_id;
+  if (!shareId){
+    for (let attempt = 0; attempt < 5 && !shareId; attempt++){
+      const candidate = makeShareCode();
+      const { error } = await sb.from("contacts").update({ share_id: candidate }).eq("id", c.id);
+      if (!error) shareId = candidate;
+    }
+    if (!shareId){ alert("Couldn't generate a share link — try again."); return; }
+  }
+  const { error: pwErr } = await sb.rpc("set_contact_share_password", { p_contact_id: c.id, p_password: pw });
+  if (pwErr){ alert("Couldn't set the password: " + pwErr.message); return; }
+  loadContacts();
+
+  const link = `${location.origin}${location.pathname}?share=${encodeURIComponent(shareId)}`;
+  el("share-link-text").textContent = link;
+  el("share-result").classList.remove("hidden");
+  el("share-qr").innerHTML = "";
+  if (typeof QRCode !== "undefined") new QRCode(el("share-qr"), { text: link, width: 150, height: 150 });
+  el("share-copy-btn").onclick = () => navigator.clipboard.writeText(link).catch(() => {});
+});
 
 /* ---------------- Bulk select ---------------- */
 el("select-toggle").addEventListener("click", () => {
@@ -786,6 +1380,26 @@ el("bulk-tag").addEventListener("click", async () => {
     await sb.from("contacts").update({ tags }).eq("id", id);
   }
   loadContacts();
+});
+el("bulk-group-select")?.addEventListener("change", async (e) => {
+  const value = e.target.value;
+  if (!value || !selectedIds.size){ e.target.value = ""; return; }
+  const ids = Array.from(selectedIds);
+
+  if (value === "__new__"){
+    await createGroupFlow(e.target);
+    const chosen = e.target.value;
+    if (!chosen || chosen === "__new__"){ e.target.value = ""; return; }
+    await sb.from("contacts").update({ group_id: chosen }).in("id", ids);
+    loadContacts();
+    e.target.value = "";
+    return;
+  }
+
+  const group_id = value === "__remove__" ? null : value;
+  await sb.from("contacts").update({ group_id }).in("id", ids);
+  loadContacts();
+  e.target.value = "";
 });
 el("bulk-export").addEventListener("click", () => {
   if (!selectedIds.size) return;
@@ -851,6 +1465,7 @@ function renderTrashList(items){
 
 /* ---------------- Boot ---------------- */
 (async function boot(){
+  if (params.get("share")) return; // shared-view routing already handled above
   const { data } = await sb.auth.getSession();
   if (data?.session) showApp();
 })();

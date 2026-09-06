@@ -315,9 +315,23 @@
           <p id="pub-desc" style="font-size:15px; line-height:1.5;"></p>
           <div class="tag-pills" id="pub-tags" style="margin-bottom:10px;"></div>
           <div class="card-meta" id="pub-meta"></div>
+          <div id="pub-reactions" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:12px;"></div>
           <a id="pub-download" class="btn ghost block" style="margin-top:14px;" href="#">⬇ Download</a>
         </div>
       </div>
+
+      <div class="pub-card" style="margin-top:14px; padding:16px;">
+        <div class="section-title" style="font-size:13px;">Comments</div>
+        <div id="pub-comments-list" style="display:flex; flex-direction:column; gap:10px; margin:12px 0;"></div>
+        <div class="field" style="margin-bottom:8px;">
+          <input id="pub-comment-name" placeholder="Your name (optional)" style="width:100%; padding:9px 10px; border:1.5px solid var(--ink); border-radius:3px; background:var(--surface);" />
+        </div>
+        <div class="field">
+          <textarea id="pub-comment-text" placeholder="Leave a comment…" style="width:100%; padding:9px 10px; border:1.5px solid var(--ink); border-radius:3px; background:var(--surface); min-height:60px; resize:vertical;"></textarea>
+        </div>
+        <button type="button" class="btn stamp block" id="pub-comment-submit">Post comment</button>
+      </div>
+
       <div class="pub-foot">Shipped via <strong>Symoh Store</strong> · <a href="#" id="pub-home">open the store</a></div>
     </div>
 
@@ -369,6 +383,7 @@
         <button class="btn ghost" id="trash-btn" style="justify-content:flex-start;">🗑 Trash</button>
         <button class="btn ghost" id="backup-btn" style="justify-content:flex-start;">⬇ Backup</button>
         <button class="btn ghost" id="manage-albums-btn" style="justify-content:flex-start;">📁 Manage albums</button>
+        <button class="btn ghost" id="storage-stats-btn" style="justify-content:flex-start;">📊 Storage stats</button>
         <button class="btn ghost" id="autosignout-toggle" style="justify-content:flex-start;">🔒 Auto sign-out: On</button>
         <button class="btn ghost hidden" id="install-btn" style="justify-content:flex-start;">⬇ Install app</button>
       </div>
@@ -433,6 +448,10 @@
       <label style="display:flex; align-items:center; gap:8px; margin-top:8px; text-transform:none; letter-spacing:normal; font-size:12px;">
         <input type="checkbox" id="compress-checkbox" checked style="width:16px; height:16px;" />
         Compress images before upload (smaller, faster — recommended)
+      </label>
+      <label id="gallery-option" class="hidden" style="display:flex; align-items:center; gap:8px; margin-top:4px; text-transform:none; letter-spacing:normal; font-size:12px;">
+        <input type="checkbox" id="gallery-checkbox" style="width:16px; height:16px;" />
+        Ship these as one gallery (single share link for all images)
       </label>
     </div>
     <div class="field hidden" id="link-field">
@@ -561,12 +580,60 @@
   </div>
 </div>
 
+<!-- ================= VIDEO EDIT MODAL (trim/compress, experimental) ================= -->
+<div id="video-edit-modal" class="modal-back hidden">
+  <div class="modal" style="max-width:440px;">
+    <div class="display" style="font-size:18px;">Trim &amp; compress video</div>
+    <div class="hint" style="margin:6px 0;">Experimental — re-encodes in your browser. Support varies by browser; if it fails, the original file ships unchanged.</div>
+    <video id="video-edit-preview" controls style="width:100%; max-height:40vh; border:2px solid var(--ink); border-radius:4px; background:#000;"></video>
+    <div class="two-col" style="margin-top:12px;">
+      <div class="field">
+        <label>Start (seconds)</label>
+        <input id="video-trim-start" type="number" min="0" step="0.5" value="0" />
+      </div>
+      <div class="field">
+        <label>End (seconds)</label>
+        <input id="video-trim-end" type="number" min="0" step="0.5" />
+      </div>
+    </div>
+    <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:10px;">
+      <input type="checkbox" id="video-compress-checkbox" checked style="width:16px; height:16px;" />
+      Compress (scale down to max 720px wide)
+    </label>
+    <div class="progress hidden" id="video-edit-progress"></div>
+    <div class="intake-actions">
+      <button type="button" class="btn ghost" id="edit-video-cancel">Cancel</button>
+      <button type="button" class="btn stamp" id="edit-video-save">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= STORAGE STATS MODAL ================= -->
+<div id="storage-stats-modal" class="modal-back hidden">
+  <div class="modal" style="max-width:480px;">
+    <div class="display" style="font-size:18px; text-align:center;">Storage over time</div>
+    <div class="hint" style="margin-top:6px; text-align:center;">Cumulative storage used, by ship date.</div>
+    <canvas id="storage-chart" width="440" height="220" style="width:100%; height:auto; margin:16px 0; background:var(--surface); border:1px solid var(--line); border-radius:4px;"></canvas>
+    <div id="storage-stats-summary" class="hint" style="text-align:center;"></div>
+    <button type="button" class="btn ghost block" id="storage-stats-close" style="margin-top:14px;">Close</button>
+  </div>
+</div>
+
 <!-- ================= MANAGE ALBUMS MODAL ================= -->
 <div id="albums-modal" class="modal-back hidden">
   <div class="modal" style="text-align:left; max-width:440px;">
     <div class="display" style="font-size:18px; text-align:center;">Manage albums</div>
     <div id="albums-list" style="display:flex; flex-direction:column; gap:8px; margin:16px 0; max-height:50vh; overflow:auto;"></div>
     <button type="button" class="btn ghost block" id="albums-close">Close</button>
+  </div>
+</div>
+
+<!-- ================= COMMENTS MODERATION MODAL ================= -->
+<div id="comments-modal" class="modal-back hidden">
+  <div class="modal" style="max-width:440px;">
+    <div class="display" style="font-size:18px; text-align:center;">Comments</div>
+    <div id="comments-mod-list" style="display:flex; flex-direction:column; gap:8px; margin:16px 0; max-height:55vh; overflow:auto;"></div>
+    <button type="button" class="btn ghost block" id="comments-close">Close</button>
   </div>
 </div>
 
@@ -585,6 +652,7 @@
   <div class="modal" style="text-align:left; max-width:480px;">
     <div class="display" style="font-size:18px; text-align:center;">Trash</div>
     <div class="hint" style="margin-top:6px;">Deleted parcels stay here for 30 days, then they're purged for good.</div>
+    <input id="trash-search-input" placeholder="Search trash…" style="width:100%; margin-top:10px; padding:8px 10px; border:1.5px solid var(--ink); border-radius:3px; background:var(--surface); color:var(--ink);" />
     <div id="trash-list" style="display:flex; flex-direction:column; gap:8px; margin:16px 0; max-height:50vh; overflow:auto;"></div>
     <button type="button" class="btn ghost block" id="trash-close">Close</button>
   </div>
@@ -597,6 +665,7 @@
     <div class="hint" style="margin-top:6px;">Export everything in your manifest. The full backup includes the actual files; the data-only export is just the descriptions, tags, and links.</div>
     <div class="link-row">
       <button type="button" class="btn teal" id="export-json-btn">Export data (JSON)</button>
+      <button type="button" class="btn ghost" id="export-csv-btn">Export data (CSV)</button>
       <button type="button" class="btn stamp" id="export-zip-btn">Export full backup (ZIP + files)</button>
     </div>
 
@@ -926,6 +995,7 @@ async function forceDownload(url, filename, btn){
 
 /* ---------------- PUBLIC SINGLE ITEM VIEW (password gated, unless owner is already logged in) ---------------- */
 let pendingShareId = null;
+let unlockedPassword = null;
 
 async function initPublicView(shareId){
   el("login-screen").classList.add("hidden");
@@ -971,6 +1041,7 @@ el("pub-gate-form")?.addEventListener("submit", async (e) => {
 
   switch (data?.status){
     case "ok":
+      unlockedPassword = pw;
       renderPublicContent(data.post);
       return;
     case "wrong_password": {
@@ -1001,9 +1072,80 @@ function renderPublicContent(data, ownerPreview){
   el("pub-meta").innerHTML = `<span>${data.file_name || data.source}</span><span>${new Date(data.created_at).toLocaleDateString()}</span>`;
   el("pub-tags").innerHTML = (data.tags || []).map(t => `<span class="tag-pill">${t}</span>`).join("");
   el("pub-media").innerHTML = mediaMarkup(data, true);
+  wireGalleryLightbox(el("pub-media"));
+  renderReactions(data.reactions || {}, ownerPreview);
+  if (ownerPreview){
+    el("pub-comments-list").innerHTML = `<div class="hint">Comments and reactions need the actual share password — you're viewing as owner.</div>`;
+    el("pub-comment-name").closest(".field").classList.add("hidden");
+    el("pub-comment-text").closest(".field").classList.add("hidden");
+    el("pub-comment-submit").classList.add("hidden");
+  } else {
+    loadPublicComments();
+  }
   const dl = el("pub-download");
-  dl.onclick = (e) => { e.preventDefault(); forceDownload(data.media_url, data.file_name || data.share_id, dl); };
+  if (data.is_gallery && data.gallery_items?.length){
+    dl.textContent = "⬇ Download all (ZIP)";
+    dl.onclick = async (e) => {
+      e.preventDefault();
+      if (typeof JSZip === "undefined"){ alert("Zip tool didn't load — check your connection."); return; }
+      dl.disabled = true; const original = dl.textContent; dl.textContent = "Zipping…";
+      try{
+        const zip = new JSZip();
+        for (let i = 0; i < data.gallery_items.length; i++){
+          const g = data.gallery_items[i];
+          try{ const res = await fetch(g.media_url); if (res.ok) zip.file(g.file_name || `image-${i+1}.jpg`, await res.blob()); } catch(err){}
+        }
+        const blob = await zip.generateAsync({ type: "blob" });
+        downloadBlob(blob, `${data.share_id}-gallery.zip`);
+      } finally { dl.disabled = false; dl.textContent = original; }
+    };
+  } else {
+    dl.textContent = "⬇ Download";
+    dl.onclick = (e) => { e.preventDefault(); forceDownload(data.media_url, data.file_name || data.share_id, dl); };
+  }
 }
+
+/* ---------------- Reactions ---------------- */
+const REACTION_EMOJI = ["👍","❤️","😂","🎉","😮","😢"];
+function renderReactions(reactions, ownerPreview){
+  el("pub-reactions").innerHTML = REACTION_EMOJI.map(e => `
+    <button type="button" class="btn ghost sm" data-react="${e}" ${ownerPreview ? "disabled" : ""} style="padding:6px 10px;">${e} ${reactions[e] || ""}</button>
+  `).join("");
+  if (ownerPreview) return;
+  el("pub-reactions").querySelectorAll("[data-react]").forEach(b => b.addEventListener("click", async () => {
+    b.disabled = true;
+    const { data, error } = await sb.rpc("add_parcel_reaction", { p_share_id: pendingShareId, p_password: unlockedPassword, p_emoji: b.dataset.react });
+    if (!error && data?.status === "ok") renderReactions(data.reactions, false);
+    else b.disabled = false;
+  }));
+}
+
+/* ---------------- Comments ---------------- */
+async function loadPublicComments(){
+  const { data, error } = await sb.rpc("get_parcel_comments_public", { p_share_id: pendingShareId, p_password: unlockedPassword });
+  const list = el("pub-comments-list");
+  if (error || data?.status !== "ok"){ list.innerHTML = `<div class="hint">Couldn't load comments.</div>`; return; }
+  if (!data.comments.length){ list.innerHTML = `<div class="hint">No comments yet — be the first.</div>`; return; }
+  list.innerHTML = data.comments.map(c => `
+    <div style="border-bottom:1px dashed var(--line); padding-bottom:8px;">
+      <div style="font-size:12.5px; font-weight:600;">${(c.author_name||"Anonymous").replace(/</g,"&lt;")}</div>
+      <div style="font-size:13px; margin-top:2px;">${c.comment.replace(/</g,"&lt;")}</div>
+      <div style="font-size:10px; color:var(--crate-dark); margin-top:2px;">${new Date(c.created_at).toLocaleString()}</div>
+    </div>
+  `).join("");
+}
+el("pub-comment-submit")?.addEventListener("click", async () => {
+  const name = el("pub-comment-name").value.trim();
+  const text = el("pub-comment-text").value.trim();
+  if (!text){ alert("Write something first."); return; }
+  const btn = el("pub-comment-submit");
+  btn.disabled = true;
+  const { data, error } = await sb.rpc("add_parcel_comment", { p_share_id: pendingShareId, p_password: unlockedPassword, p_author_name: name, p_comment: text });
+  btn.disabled = false;
+  if (error || data?.status !== "ok"){ alert("Couldn't post that comment — try again."); return; }
+  el("pub-comment-text").value = "";
+  loadPublicComments();
+});
 
 /* ---------------- MEDIA RENDERING ---------------- */
 function isYouTube(url){ return /(?:youtube\.com|m\.youtube\.com)\/(watch\?v=|shorts\/|embed\/)|youtu\.be\//.test(url); }
@@ -1019,6 +1161,21 @@ function ytEmbed(url){
 
 function mediaMarkup(post, large){
   const url = post.media_url;
+  if (post.is_gallery && post.gallery_items && post.gallery_items.length){
+    if (!large){
+      const items = post.gallery_items.slice(0, 4);
+      const extra = post.gallery_items.length - items.length;
+      return `<div style="display:grid; grid-template-columns:repeat(2,1fr); gap:2px; width:100%; height:100%;">
+        ${items.map((g,i) => `<div style="position:relative; overflow:hidden;"><img src="${g.thumb_url || g.media_url}" style="width:100%; height:100%; object-fit:cover; display:block;" />${i===3 && extra>0 ? `<div style="position:absolute; inset:0; background:rgba(0,0,0,0.55); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Oswald',sans-serif; font-size:16px;">+${extra}</div>` : ""}</div>`).join("")}
+      </div>`;
+    }
+    return `<div class="gallery-lightbox" data-gallery='${JSON.stringify(post.gallery_items).replace(/'/g,"&#39;")}'>
+      <img src="${post.gallery_items[0].media_url}" data-gallery-main style="width:100%; max-height:460px; object-fit:contain; cursor:zoom-in;" />
+      <div style="display:flex; gap:4px; margin-top:8px; overflow-x:auto;">
+        ${post.gallery_items.map((g,i) => `<img src="${g.thumb_url||g.media_url}" data-gallery-thumb="${i}" style="width:56px; height:56px; object-fit:cover; border-radius:3px; cursor:pointer; border:2px solid ${i===0?'var(--stamp)':'transparent'};" />`).join("")}
+      </div>
+    </div>`;
+  }
   if (post.media_type === "image"){
     const src = (!large && post.thumb_url) ? post.thumb_url : url;
     return `<img src="${src}" alt="parcel image" loading="lazy" />`;
@@ -1036,6 +1193,18 @@ function mediaMarkup(post, large){
             <span style="font-size:38px;">📄</span>
             <a href="${url}" target="_blank" rel="noopener" style="color:#ecdfba;font-size:12px;">${large ? 'Open file' : 'Open'}</a>
           </div>`;
+}
+function wireGalleryLightbox(container){
+  const box = container.querySelector(".gallery-lightbox");
+  if (!box) return;
+  const items = JSON.parse(box.dataset.gallery.replace(/&#39;/g, "'"));
+  const mainImg = box.querySelector("[data-gallery-main]");
+  box.querySelectorAll("[data-gallery-thumb]").forEach(t => t.addEventListener("click", () => {
+    const idx = Number(t.dataset.galleryThumb);
+    mainImg.src = items[idx].media_url;
+    box.querySelectorAll("[data-gallery-thumb]").forEach(x => x.style.border = "2px solid transparent");
+    t.style.border = "2px solid var(--stamp)";
+  }));
 }
 
 /* ---------------- AUTH ---------------- */
@@ -1135,6 +1304,7 @@ async function purgeOldTrash(){
   await sb.from("posts").delete().eq("created_by", user.id).lt("deleted_at", cutoff);
 }
 
+let allTrashItems = [];
 async function openTrashModal(){
   const { data: userData } = await sb.auth.getUser();
   const user = userData?.user;
@@ -1144,11 +1314,23 @@ async function openTrashModal(){
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending:false });
   if (error){ alert("Couldn't load trash: " + error.message); return; }
-  renderTrashList(data || []);
+  allTrashItems = data || [];
+  el("trash-search-input").value = "";
+  renderTrashList(allTrashItems);
   el("trash-modal").classList.remove("hidden");
 }
 el("trash-btn")?.addEventListener("click", openTrashModal);
 el("trash-close")?.addEventListener("click", () => el("trash-modal").classList.add("hidden"));
+el("trash-search-input")?.addEventListener("input", (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!q){ renderTrashList(allTrashItems); return; }
+  renderTrashList(allTrashItems.filter(p =>
+    (p.description || "").toLowerCase().includes(q) ||
+    (p.file_name || "").toLowerCase().includes(q) ||
+    p.share_id.toLowerCase().includes(q) ||
+    (p.tags || []).some(t => t.toLowerCase().includes(q))
+  ));
+});
 
 /* ---------------- BACKUP / EXPORT ---------------- */
 function downloadBlob(blob, filename){
@@ -1172,9 +1354,27 @@ function exportableFields(p){
 el("backup-btn")?.addEventListener("click", () => el("backup-modal").classList.remove("hidden"));
 el("backup-close")?.addEventListener("click", () => el("backup-modal").classList.add("hidden"));
 
-el("export-json-btn")?.addEventListener("click", () => {
-  const payload = JSON.stringify(allPosts.map(exportableFields), null, 2);
+el("export-json-btn")?.addEventListener("click", async () => {
+  const posts = await fetchAllPostsForExport();
+  const payload = JSON.stringify(posts.map(exportableFields), null, 2);
   downloadBlob(new Blob([payload], { type: "application/json" }), `symoh-store-backup-${dateStamp()}.json`);
+  markBackupDone();
+});
+
+function csvEscape(v){
+  const s = (v ?? "").toString();
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+el("export-csv-btn")?.addEventListener("click", async () => {
+  const posts = await fetchAllPostsForExport();
+  const headers = ["Description","Type","Source","Media URL","File Name","Tags","Album","Expires","Views","Last Viewed","Share Code","Created"];
+  const rows = posts.map(p => [
+    p.description || "", p.media_type, p.source, p.media_url, p.file_name || "",
+    (p.tags||[]).join("; "), p.album_id ? (albumNameFor(p.album_id) || "") : "",
+    p.expires_at || "", p.view_count || 0, p.last_viewed_at || "", p.share_id, p.created_at
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(csvEscape).join(",")).join("\r\n");
+  downloadBlob(new Blob([csv], { type: "text/csv" }), `symoh-store-backup-${dateStamp()}.csv`);
   markBackupDone();
 });
 
@@ -1184,12 +1384,13 @@ el("export-zip-btn")?.addEventListener("click", async () => {
   progress.classList.remove("hidden");
   progress.textContent = "Preparing backup…";
   try{
+    const posts = await fetchAllPostsForExport();
     const zip = new JSZip();
-    zip.file("manifest.json", JSON.stringify(allPosts.map(exportableFields), null, 2));
+    zip.file("manifest.json", JSON.stringify(posts.map(exportableFields), null, 2));
     const filesFolder = zip.folder("files");
-    for (let i = 0; i < allPosts.length; i++){
-      const p = allPosts[i];
-      progress.textContent = `Packing ${i+1} of ${allPosts.length}…`;
+    for (let i = 0; i < posts.length; i++){
+      const p = posts[i];
+      progress.textContent = `Packing ${i+1} of ${posts.length}…`;
       if (p.source === "upload"){
         try{
           const res = await fetch(p.media_url);
@@ -1373,6 +1574,7 @@ document.querySelectorAll(".tab-btn").forEach(b => b.addEventListener("click", (
   document.querySelectorAll(".tab-btn").forEach(x => x.classList.remove("active"));
   b.classList.add("active");
   selType = b.dataset.type;
+  updateGalleryOptionVisibility();
 }));
 document.querySelectorAll(".src-btn").forEach(b => b.addEventListener("click", () => {
   document.querySelectorAll(".src-btn").forEach(x => x.classList.remove("active"));
@@ -1381,6 +1583,12 @@ document.querySelectorAll(".src-btn").forEach(b => b.addEventListener("click", (
   el("upload-field").classList.toggle("hidden", selSrc !== "upload");
   el("link-field").classList.toggle("hidden", selSrc !== "link");
 }));
+
+function updateGalleryOptionVisibility(){
+  const show = selType === "image" && selectedFiles.length >= 2;
+  el("gallery-option").classList.toggle("hidden", !show);
+  if (!show) el("gallery-checkbox").checked = false;
+}
 
 el("new-parcel-btn").addEventListener("click", () => {
   el("intake").classList.toggle("hidden");
@@ -1400,9 +1608,11 @@ function resetIntake(){
   el("share-code-input").value = "";
   el("album-select").value = "";
   el("compress-checkbox").checked = true;
+  el("gallery-checkbox").checked = false;
   el("progress-text").classList.add("hidden");
   selectedFiles = [];
   renderFileList();
+  updateGalleryOptionVisibility();
 }
 
 function renderFileList(){
@@ -1412,6 +1622,7 @@ function renderFileList(){
     <span>${f.name}
       <span>
         ${selType === "image" && f.type.startsWith("image/") ? `<button type="button" data-edit-img="${i}" style="border:none;background:none;color:var(--teal);cursor:pointer;margin-right:8px;">✎ Edit</button>` : ""}
+        ${selType === "video" && f.type.startsWith("video/") ? `<button type="button" data-edit-vid="${i}" style="border:none;background:none;color:var(--teal);cursor:pointer;margin-right:8px;">✎ Trim/compress</button>` : ""}
         <button type="button" data-remove="${i}" style="border:none;background:none;color:var(--stamp);cursor:pointer;">✕</button>
       </span>
     </span>
@@ -1419,9 +1630,13 @@ function renderFileList(){
   list.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => {
     selectedFiles.splice(Number(b.dataset.remove), 1);
     renderFileList();
+    updateGalleryOptionVisibility();
   }));
   list.querySelectorAll("[data-edit-img]").forEach(b => b.addEventListener("click", () => {
     openImageEditor(Number(b.dataset.editImg));
+  }));
+  list.querySelectorAll("[data-edit-vid]").forEach(b => b.addEventListener("click", () => {
+    openVideoEditor(Number(b.dataset.editVid));
   }));
 }
 
@@ -1499,6 +1714,96 @@ el("edit-image-save")?.addEventListener("click", () => {
   }, "image/jpeg", 0.9);
 });
 
+/* ---------------- VIDEO EDITOR (trim + compress, experimental) ---------------- */
+let videoEditIndex = null;
+function openVideoEditor(index){
+  videoEditIndex = index;
+  const file = selectedFiles[index];
+  const video = el("video-edit-preview");
+  video.src = URL.createObjectURL(file);
+  video.onloadedmetadata = () => {
+    el("video-trim-start").value = 0;
+    el("video-trim-end").value = Math.round(video.duration * 10) / 10;
+  };
+  el("video-edit-progress").classList.add("hidden");
+  el("video-edit-modal").classList.remove("hidden");
+}
+el("edit-video-cancel")?.addEventListener("click", () => {
+  el("video-edit-modal").classList.add("hidden");
+  URL.revokeObjectURL(el("video-edit-preview").src);
+});
+
+el("edit-video-save")?.addEventListener("click", async () => {
+  const video = el("video-edit-preview");
+  const start = parseFloat(el("video-trim-start").value) || 0;
+  const end = parseFloat(el("video-trim-end").value) || video.duration;
+  const compress = el("video-compress-checkbox").checked;
+  const progress = el("video-edit-progress");
+
+  if (end <= start || start < 0 || end > video.duration + 0.5){
+    alert("Check your start/end times — end must be after start, within the video's length.");
+    return;
+  }
+  if (typeof MediaRecorder === "undefined" || !video.captureStream){
+    alert("Your browser doesn't support in-browser video re-encoding. Shipping the original file unchanged.");
+    el("video-edit-modal").classList.add("hidden");
+    return;
+  }
+
+  progress.classList.remove("hidden");
+  progress.textContent = "Preparing…";
+
+  try{
+    let width = video.videoWidth, height = video.videoHeight;
+    if (compress && width > 720){ height = Math.round(height * (720 / width)); width = 720; }
+    const canvas = document.createElement("canvas");
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext("2d");
+
+    const canvasStream = canvas.captureStream(30);
+    let audioTracks = [];
+    try{ audioTracks = video.captureStream().getAudioTracks(); } catch(e){ /* some browsers restrict this; ship silent video */ }
+    const combined = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
+
+    const mimeType = ["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"].find(t => MediaRecorder.isTypeSupported(t)) || "";
+    const recorder = new MediaRecorder(combined, mimeType ? { mimeType } : undefined);
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+
+    const done = new Promise((resolve) => { recorder.onstop = resolve; });
+
+    video.currentTime = start;
+    await new Promise((resolve) => { video.onseeked = resolve; });
+    recorder.start();
+    await video.play();
+    progress.textContent = "Recording…";
+
+    await new Promise((resolve) => {
+      function drawFrame(){
+        if (video.currentTime >= end || video.paused || video.ended){ resolve(); return; }
+        ctx.drawImage(video, 0, 0, width, height);
+        requestAnimationFrame(drawFrame);
+      }
+      drawFrame();
+    });
+
+    video.pause();
+    recorder.stop();
+    await done;
+
+    const blob = new Blob(chunks, { type: "video/webm" });
+    const original = selectedFiles[videoEditIndex];
+    selectedFiles[videoEditIndex] = new File([blob], original.name.replace(/\.\w+$/, "") + ".webm", { type: "video/webm" });
+    renderFileList();
+    el("video-edit-modal").classList.add("hidden");
+  } catch(err){
+    alert("Trim/compress failed (" + (err.message || err) + ") — shipping the original file unchanged.");
+    el("video-edit-modal").classList.add("hidden");
+  } finally {
+    progress.classList.add("hidden");
+  }
+});
+
 const dropzone = el("dropzone");
 const fileInput = el("file-input");
 dropzone.addEventListener("click", () => fileInput.click());
@@ -1506,6 +1811,7 @@ fileInput.addEventListener("change", () => {
   selectedFiles = selectedFiles.concat(Array.from(fileInput.files));
   fileInput.value = "";
   renderFileList();
+  updateGalleryOptionVisibility();
 });
 ["dragenter","dragover"].forEach(evt => dropzone.addEventListener(evt, (e) => {
   e.preventDefault(); dropzone.classList.add("drag-over");
@@ -1517,6 +1823,7 @@ dropzone.addEventListener("drop", (e) => {
   const dropped = Array.from(e.dataTransfer.files || []);
   selectedFiles = selectedFiles.concat(dropped);
   renderFileList();
+  updateGalleryOptionVisibility();
 });
 
 /* ---------------- THUMBNAIL GENERATION ---------------- */
@@ -1662,8 +1969,58 @@ el("ship-btn").addEventListener("click", async () => {
 
   try{
     let lastShareId = null;
+    const shipAsGallery = selType === "image" && selSrc === "upload" && el("gallery-checkbox").checked && selectedFiles.length >= 2;
 
-    if (selSrc === "upload"){
+    if (shipAsGallery){
+      const galleryItems = [];
+      for (let i = 0; i < selectedFiles.length; i++){
+        let file = selectedFiles[i];
+        if (compress){
+          progress.textContent = `Compressing ${i+1} of ${selectedFiles.length}…`;
+          file = await compressImage(file);
+        }
+        progress.textContent = `Uploading ${i+1} of ${selectedFiles.length}…`;
+        const path = `${user.id}/${Date.now()}-${i}-${file.name}`;
+        const { error: upErr } = await sb.storage.from(BUCKET).upload(path, file);
+        if (upErr) throw upErr;
+        const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(path);
+        let thumb_url = null;
+        const thumbBlob = await makeImageThumbnail(file);
+        if (thumbBlob){
+          const thumbPath = `${user.id}/thumb-${Date.now()}-${i}-${file.name}.jpg`;
+          const { error: thumbErr } = await sb.storage.from(BUCKET).upload(thumbPath, thumbBlob);
+          if (!thumbErr){
+            const { data: thumbPub } = sb.storage.from(BUCKET).getPublicUrl(thumbPath);
+            thumb_url = thumbPub.publicUrl;
+          }
+        }
+        galleryItems.push({ media_url: pub.publicUrl, thumb_url, file_name: file.name, file_size: file.size });
+      }
+      progress.textContent = "Filing the manifest…";
+      const insertPayload = {
+        media_type: "image",
+        source: "upload",
+        media_url: galleryItems[0].media_url,
+        thumb_url: galleryItems[0].thumb_url,
+        file_name: galleryItems[0].file_name,
+        file_size: galleryItems.reduce((sum,g) => sum + (g.file_size||0), 0),
+        is_gallery: true,
+        gallery_items: galleryItems,
+        description: desc,
+        tags,
+        expires_at,
+        album_id,
+        created_by: user.id
+      };
+      if (customCode) insertPayload.share_id = customCode;
+      const { data, error } = await sb.from("posts").insert(insertPayload).select().single();
+      if (error){
+        if (error.code === "23505") throw new Error(`Share code "${customCode}" is already taken — try a different one.`);
+        throw error;
+      }
+      await sb.rpc("set_share_password", { p_post_id: data.id, p_password: sharePassword });
+      lastShareId = data.share_id;
+    } else if (selSrc === "upload"){
       if (!selectedFiles.length){ alert("Choose at least one file, or switch to Paste a link."); progress.classList.add("hidden"); return; }
       for (let i = 0; i < selectedFiles.length; i++){
         let file = selectedFiles[i];
@@ -1884,6 +2241,31 @@ async function createAlbumFlow(selectEl){
   selectEl.value = data.id;
 }
 
+/* ---------------- COMMENTS MODERATION ---------------- */
+el("comments-close")?.addEventListener("click", () => el("comments-modal").classList.add("hidden"));
+async function openCommentsModal(postId){
+  const { data, error } = await sb.from("parcel_comments").select("*").eq("post_id", postId).order("created_at", { ascending: false });
+  const list = el("comments-mod-list");
+  if (error){ list.innerHTML = `<div class="hint" style="margin:0;">Couldn't load comments.</div>`; }
+  else if (!data.length){ list.innerHTML = `<div class="hint" style="margin:0;">No comments on this parcel yet.</div>`; }
+  else {
+    list.innerHTML = data.map(c => `
+      <div class="trash-row" style="align-items:flex-start;">
+        <div class="trash-info">
+          <div class="trash-desc" style="white-space:normal; font-weight:600;">${(c.author_name||"Anonymous").replace(/</g,"&lt;")}</div>
+          <div style="font-size:12px; margin:2px 0;">${c.comment.replace(/</g,"&lt;")}</div>
+          <div class="trash-meta">${new Date(c.created_at).toLocaleString()}</div>
+        </div>
+        <button class="btn stamp" data-del-comment="${c.id}">Delete</button>
+      </div>`).join("");
+    list.querySelectorAll("[data-del-comment]").forEach(b => b.addEventListener("click", async () => {
+      await sb.from("parcel_comments").delete().eq("id", b.dataset.delComment);
+      openCommentsModal(postId);
+    }));
+  }
+  el("comments-modal").classList.remove("hidden");
+}
+
 /* ---------------- VIEW LOG MODAL ---------------- */
 el("viewlog-close")?.addEventListener("click", () => el("viewlog-modal").classList.add("hidden"));
 
@@ -1901,6 +2283,80 @@ async function openViewLog(postId){
     list.innerHTML = data.map(v => `<div class="trash-row"><div class="trash-info mono" style="font-size:11.5px;">${new Date(v.viewed_at).toLocaleString()}</div></div>`).join("");
   }
   el("viewlog-modal").classList.remove("hidden");
+}
+
+/* ---------------- STORAGE STATS ---------------- */
+el("storage-stats-btn")?.addEventListener("click", async () => {
+  const posts = await fetchAllPostsForExport();
+  renderStorageChart(posts);
+  el("storage-stats-modal").classList.remove("hidden");
+});
+el("storage-stats-close")?.addEventListener("click", () => el("storage-stats-modal").classList.add("hidden"));
+
+function renderStorageChart(posts){
+  const sorted = posts.slice().sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+  let cumulative = 0;
+  const points = sorted.map(p => {
+    cumulative += p.file_size || 0;
+    return { date: new Date(p.created_at), bytes: cumulative };
+  });
+
+  const canvas = el("storage-chart");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height, pad = 36;
+  ctx.clearRect(0, 0, W, H);
+
+  if (points.length < 2){
+    ctx.fillStyle = "#8a7a5c";
+    ctx.font = "13px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Not enough data yet — ship a few more parcels.", W/2, H/2);
+    el("storage-stats-summary").textContent = `${fmtBytes(cumulative)} used across ${posts.length} parcel(s).`;
+    return;
+  }
+
+  const maxBytes = points[points.length - 1].bytes || 1;
+  const minTime = points[0].date.getTime();
+  const maxTime = points[points.length - 1].date.getTime() || minTime + 1;
+
+  const xFor = (t) => pad + ((t - minTime) / (maxTime - minTime || 1)) * (W - pad*2);
+  const yFor = (b) => H - pad - (b / maxBytes) * (H - pad*2);
+
+  // axes
+  ctx.strokeStyle = "#c9b98d";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, pad*0.5); ctx.lineTo(pad, H-pad); ctx.lineTo(W-pad*0.5, H-pad);
+  ctx.stroke();
+
+  // line
+  ctx.strokeStyle = "#2e5c55";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((pt, i) => {
+    const x = xFor(pt.date.getTime()), y = yFor(pt.bytes);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // fill under line
+  ctx.lineTo(xFor(points[points.length-1].date.getTime()), H-pad);
+  ctx.lineTo(xFor(points[0].date.getTime()), H-pad);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(46,92,85,0.15)";
+  ctx.fill();
+
+  // labels
+  ctx.fillStyle = "#5a4a30";
+  ctx.font = "10px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(points[0].date.toLocaleDateString(), pad, H-pad+14);
+  ctx.textAlign = "right";
+  ctx.fillText(points[points.length-1].date.toLocaleDateString(), W-pad*0.5, H-pad+14);
+  ctx.textAlign = "right";
+  ctx.fillText(fmtBytes(maxBytes), pad-4, pad*0.5+4);
+
+  el("storage-stats-summary").textContent = `${fmtBytes(cumulative)} used across ${posts.length} parcel(s).`;
 }
 
 /* ---------------- MANAGE ALBUMS MODAL ---------------- */
@@ -1959,6 +2415,18 @@ el("album-filter")?.addEventListener("change", (e) => {
 
 const PAGE_SIZE = 60;
 let hasMorePosts = false;
+
+async function fetchAllPostsForExport(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return [];
+  const { data, error } = await sb.from("posts").select("*")
+    .eq("created_by", user.id)
+    .is("deleted_at", null)
+    .order("created_at", { ascending:false });
+  if (error){ console.error(error); return allPosts; }
+  return data || [];
+}
 
 async function loadPosts(){
   const { data: userData } = await sb.auth.getUser();
@@ -2077,6 +2545,7 @@ function renderGrid(posts){
           <button class="btn teal" data-share="${p.share_id}">Share</button>
           <button class="btn ghost" data-download="${p.id}">⬇ Download</button>
           <button class="btn ghost" data-edit="${p.id}">Edit</button>
+          <button class="btn ghost" data-comments="${p.id}">💬</button>
           <button class="btn stamp" data-del="${p.id}">Delete</button>
         </div>
       </div>
@@ -2100,6 +2569,7 @@ function renderGrid(posts){
     if (post) openEditModal(post);
   }));
   grid.querySelectorAll("[data-viewlog]").forEach(b => b.addEventListener("click", () => openViewLog(b.dataset.viewlog)));
+  grid.querySelectorAll("[data-comments]").forEach(b => b.addEventListener("click", () => openCommentsModal(b.dataset.comments)));
   grid.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
     const id = b.dataset.del;
     const { error } = await sb.from("posts").update({ deleted_at: new Date().toISOString() }).eq("id", id);

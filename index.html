@@ -393,6 +393,7 @@
 
   <div class="offline-banner hidden" id="offline-banner">📡 You're offline — showing your last synced parcels. New uploads are queued and will ship automatically once you're back online.</div>
   <div class="offline-banner hidden" id="backup-reminder-banner" style="background:var(--teal);"></div>
+  <div class="offline-banner hidden" id="storage-warning-banner"></div>
 
   <div class="stats-bar" id="stats-bar"></div>
 
@@ -1251,6 +1252,7 @@ async function showApp(){
   await refreshPendingSection();
   await loadAlbums();
   loadPosts();
+  checkStorageWarning(); // fire-and-forget; cached for an hour so it doesn't slow down every load
 }
 
 /* ---------------- AUTO SIGN-OUT AFTER 1 MINUTE INACTIVE (unless device is remembered) ---------------- */
@@ -1412,7 +1414,63 @@ el("export-zip-btn")?.addEventListener("click", async () => {
   }
 });
 
-/* ---------------- Backup reminder ---------------- */
+/* ---------------- Storage warning (Supabase free tier: 1GB total, shared across all buckets) ---------------- */
+const SUPABASE_FREE_STORAGE_BYTES = 1024 * 1024 * 1024; // 1 GB
+const STORAGE_CHECK_CACHE_MS = 60 * 60 * 1000; // re-check at most once an hour
+
+async function listBucketBytes(bucket, prefix){
+  let total = 0, offset = 0;
+  while (true){
+    const { data, error } = await sb.storage.from(bucket).list(prefix, { limit: 1000, offset });
+    if (error || !data || !data.length) break;
+    total += data.reduce((sum, obj) => sum + (obj.metadata?.size || 0), 0);
+    if (data.length < 1000) break;
+    offset += 1000;
+  }
+  return total;
+}
+
+async function computeTotalSupabaseStorageBytes(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return 0;
+  const buckets = ["symoh-store", "symoh-private", "symoh-contacts"];
+  let total = 0;
+  for (const bucket of buckets){
+    try{ total += await listBucketBytes(bucket, user.id); } catch(err){ console.warn("Couldn't list bucket", bucket, err); }
+  }
+  return total;
+}
+
+async function checkStorageWarning(force){
+  const banner = el("storage-warning-banner");
+  if (!banner) return;
+
+  const cached = localStorage.getItem("symoh_storage_check");
+  if (!force && cached){
+    const { at, bytes } = JSON.parse(cached);
+    if (Date.now() - at < STORAGE_CHECK_CACHE_MS){ renderStorageWarning(bytes); return; }
+  }
+
+  const bytes = await computeTotalSupabaseStorageBytes();
+  localStorage.setItem("symoh_storage_check", JSON.stringify({ at: Date.now(), bytes }));
+  renderStorageWarning(bytes);
+}
+
+function renderStorageWarning(bytes){
+  const banner = el("storage-warning-banner");
+  const pct = (bytes / SUPABASE_FREE_STORAGE_BYTES) * 100;
+  if (pct < 75){ banner.classList.add("hidden"); return; }
+
+  const critical = pct >= 90;
+  banner.style.background = critical ? "var(--stamp)" : "#8a6d1f";
+  banner.innerHTML = critical
+    ? `🚨 ${fmtBytes(bytes)} of ${fmtBytes(SUPABASE_FREE_STORAGE_BYTES)} used (${pct.toFixed(0)}%) — Supabase's free plan will stop accepting uploads once you hit the limit. Consider deleting old parcels or upgrading to Pro.`
+    : `⚠️ ${fmtBytes(bytes)} of ${fmtBytes(SUPABASE_FREE_STORAGE_BYTES)} used (${pct.toFixed(0)}%) across your whole Supabase project (store + private + contacts) — getting close to the free plan's 1GB limit.`;
+  banner.classList.remove("hidden");
+}
+
+
 const BACKUP_REMINDER_DAYS = 14;
 function markBackupDone(){
   localStorage.setItem("symoh_last_backup", new Date().toISOString());
@@ -2099,6 +2157,7 @@ el("ship-btn").addEventListener("click", async () => {
     resetIntake();
     openShipModal(lastShareId);
     loadPosts();
+    checkStorageWarning(true);
   } catch(err){
     progress.classList.add("hidden");
     alert("Shipping failed: " + (err.message || err));

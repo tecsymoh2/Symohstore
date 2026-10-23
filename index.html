@@ -356,10 +356,6 @@
       <label for="password">Access Code</label>
       <input id="password" type="password" autocomplete="current-password" placeholder="••••••••••" required />
     </div>
-    <div class="field" style="display:flex; align-items:center; gap:8px;">
-      <input type="checkbox" id="remember-device" style="width:16px; height:16px;" />
-      <label for="remember-device" style="margin:0; text-transform:none; letter-spacing:normal; font-size:12px;">Remember this device (skip 1-minute auto sign-out)</label>
-    </div>
     <button type="submit" class="btn stamp block" id="login-btn">Clear Checkpoint</button>
     <div class="err hidden" id="login-err"></div>
   </form>
@@ -384,7 +380,6 @@
         <button class="btn ghost" id="backup-btn" style="justify-content:flex-start;">⬇ Backup</button>
         <button class="btn ghost" id="manage-albums-btn" style="justify-content:flex-start;">📁 Manage albums</button>
         <button class="btn ghost" id="storage-stats-btn" style="justify-content:flex-start;">📊 Storage stats</button>
-        <button class="btn ghost" id="autosignout-toggle" style="justify-content:flex-start;">🔒 Auto sign-out: On</button>
         <button class="btn ghost hidden" id="install-btn" style="justify-content:flex-start;">⬇ Install app</button>
       </div>
     </div>
@@ -393,6 +388,7 @@
 
   <div class="offline-banner hidden" id="offline-banner">📡 You're offline — showing your last synced parcels. New uploads are queued and will ship automatically once you're back online.</div>
   <div class="offline-banner hidden" id="backup-reminder-banner" style="background:var(--teal);"></div>
+  <div class="offline-banner hidden" id="storage-warning-banner"></div>
 
   <div class="stats-bar" id="stats-bar"></div>
 
@@ -610,12 +606,20 @@
 
 <!-- ================= STORAGE STATS MODAL ================= -->
 <div id="storage-stats-modal" class="modal-back hidden">
-  <div class="modal" style="max-width:480px;">
+  <div class="modal" style="max-width:480px; text-align:left; max-height:85vh; overflow:auto;">
     <div class="display" style="font-size:18px; text-align:center;">Storage over time</div>
     <div class="hint" style="margin-top:6px; text-align:center;">Cumulative storage used, by ship date.</div>
     <canvas id="storage-chart" width="440" height="220" style="width:100%; height:auto; margin:16px 0; background:var(--surface); border:1px solid var(--line); border-radius:4px;"></canvas>
     <div id="storage-stats-summary" class="hint" style="text-align:center;"></div>
-    <button type="button" class="btn ghost block" id="storage-stats-close" style="margin-top:14px;">Close</button>
+
+    <div class="section-title" style="font-size:12px; margin-top:18px;">By bucket</div>
+    <div id="storage-by-bucket" style="display:flex; flex-direction:column; gap:6px; margin-bottom:6px;"></div>
+    <div class="hint" id="storage-by-bucket-note" style="margin-top:4px;"></div>
+
+    <div class="section-title" style="font-size:12px; margin-top:18px;">Largest parcels</div>
+    <div id="storage-top-parcels" style="display:flex; flex-direction:column; gap:6px;"></div>
+
+    <button type="button" class="btn ghost block" id="storage-stats-close" style="margin-top:18px;">Close</button>
   </div>
 </div>
 
@@ -630,9 +634,14 @@
 
 <!-- ================= COMMENTS MODERATION MODAL ================= -->
 <div id="comments-modal" class="modal-back hidden">
-  <div class="modal" style="max-width:440px;">
+  <div class="modal" style="max-width:440px; text-align:left;">
     <div class="display" style="font-size:18px; text-align:center;">Comments</div>
-    <div id="comments-mod-list" style="display:flex; flex-direction:column; gap:8px; margin:16px 0; max-height:55vh; overflow:auto;"></div>
+    <div id="comments-mod-list" style="display:flex; flex-direction:column; gap:8px; margin:16px 0; max-height:45vh; overflow:auto;"></div>
+    <div class="field">
+      <label>Reply as Symoh</label>
+      <textarea id="comment-reply-input" placeholder="Write a reply…" style="width:100%; padding:9px 10px; border:1.5px solid var(--ink); border-radius:3px; background:var(--surface); min-height:50px; resize:vertical;"></textarea>
+    </div>
+    <button type="button" class="btn teal block" id="comment-reply-send" style="margin-bottom:10px;">Post reply</button>
     <button type="button" class="btn ghost block" id="comments-close">Close</button>
   </div>
 </div>
@@ -1127,8 +1136,8 @@ async function loadPublicComments(){
   if (error || data?.status !== "ok"){ list.innerHTML = `<div class="hint">Couldn't load comments.</div>`; return; }
   if (!data.comments.length){ list.innerHTML = `<div class="hint">No comments yet — be the first.</div>`; return; }
   list.innerHTML = data.comments.map(c => `
-    <div style="border-bottom:1px dashed var(--line); padding-bottom:8px;">
-      <div style="font-size:12.5px; font-weight:600;">${(c.author_name||"Anonymous").replace(/</g,"&lt;")}</div>
+    <div style="border-bottom:1px dashed var(--line); padding-bottom:8px; ${c.is_owner ? 'background:rgba(46,92,85,0.08); padding:8px; border-radius:3px;' : ''}">
+      <div style="font-size:12.5px; font-weight:600;">${c.is_owner ? '⭐ ' : ''}${(c.author_name||"Anonymous").replace(/</g,"&lt;")}</div>
       <div style="font-size:13px; margin-top:2px;">${c.comment.replace(/</g,"&lt;")}</div>
       <div style="font-size:10px; color:var(--crate-dark); margin-top:2px;">${new Date(c.created_at).toLocaleString()}</div>
     </div>
@@ -1230,12 +1239,10 @@ el("login-form").addEventListener("submit", async (e) => {
     el("login-err").classList.remove("hidden");
     return;
   }
-  localStorage.setItem("symoh_remember_device", el("remember-device").checked ? "1" : "0");
   showApp();
 });
 
 el("signout-btn").addEventListener("click", async () => {
-  clearInactivityTimer();
   await sb.auth.signOut();
   location.reload();
 });
@@ -1245,55 +1252,12 @@ async function showApp(){
   el("pub-screen").classList.add("hidden");
   el("app-screen").classList.remove("hidden");
   updateOnlineStatus();
-  updateAutoSignoutBtn();
-  startInactivityWatch();
   await purgeOldTrash();
   await refreshPendingSection();
   await loadAlbums();
   loadPosts();
+  checkStorageWarning(); // fire-and-forget; cached for an hour so it doesn't slow down every load
 }
-
-/* ---------------- AUTO SIGN-OUT AFTER 1 MINUTE INACTIVE (unless device is remembered) ---------------- */
-const INACTIVITY_MS = 60 * 1000; // 1 minute
-let inactivityTimer = null;
-let inactivityWatching = false;
-
-function isDeviceRemembered(){
-  return localStorage.getItem("symoh_remember_device") === "1";
-}
-function setDeviceRemembered(val){
-  localStorage.setItem("symoh_remember_device", val ? "1" : "0");
-  updateAutoSignoutBtn();
-  if (val) clearInactivityTimer(); else startInactivityWatch();
-}
-function updateAutoSignoutBtn(){
-  const btn = el("autosignout-toggle");
-  if (!btn) return;
-  btn.textContent = isDeviceRemembered() ? "🔓 Auto sign-out: Off" : "🔒 Auto sign-out: On";
-}
-el("autosignout-toggle")?.addEventListener("click", () => setDeviceRemembered(!isDeviceRemembered()));
-
-function resetInactivityTimer(){
-  if (!inactivityWatching || isDeviceRemembered()) return;
-  if (inactivityTimer) clearTimeout(inactivityTimer);
-  inactivityTimer = setTimeout(async () => {
-    inactivityWatching = false;
-    await sb.auth.signOut();
-    location.reload();
-  }, INACTIVITY_MS);
-}
-function startInactivityWatch(){
-  if (isDeviceRemembered()){ inactivityWatching = false; return; }
-  inactivityWatching = true;
-  resetInactivityTimer();
-}
-function clearInactivityTimer(){
-  inactivityWatching = false;
-  if (inactivityTimer) clearTimeout(inactivityTimer);
-}
-["mousemove","mousedown","keydown","touchstart","scroll","click"].forEach((evt) => {
-  window.addEventListener(evt, resetInactivityTimer, { passive: true });
-});
 
 /* ---------------- TRASH (30-day retention) ---------------- */
 async function purgeOldTrash(){
@@ -1412,7 +1376,80 @@ el("export-zip-btn")?.addEventListener("click", async () => {
   }
 });
 
-/* ---------------- Backup reminder ---------------- */
+/* ---------------- Storage warning (Supabase free tier: 1GB total, shared across all buckets) ---------------- */
+const SUPABASE_FREE_STORAGE_BYTES = 1024 * 1024 * 1024; // 1 GB
+const STORAGE_CHECK_CACHE_MS = 60 * 60 * 1000; // re-check at most once an hour
+
+async function listBucketBytes(bucket, prefix){
+  let total = 0, offset = 0;
+  while (true){
+    const { data, error } = await sb.storage.from(bucket).list(prefix, { limit: 1000, offset });
+    if (error || !data || !data.length) break;
+    total += data.reduce((sum, obj) => sum + (obj.metadata?.size || 0), 0);
+    if (data.length < 1000) break;
+    offset += 1000;
+  }
+  return total;
+}
+
+async function computeTotalSupabaseStorageBytes(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return 0;
+  const buckets = ["symoh-store", "symoh-private", "symoh-contacts"];
+  let total = 0;
+  for (const bucket of buckets){
+    try{ total += await listBucketBytes(bucket, user.id); } catch(err){ console.warn("Couldn't list bucket", bucket, err); }
+  }
+  return total;
+}
+
+async function computeStorageByBucket(){
+  const { data: userData } = await sb.auth.getUser();
+  const user = userData?.user;
+  if (!user) return [];
+  const buckets = [
+    { id: "symoh-store", label: "Main store" },
+    { id: "symoh-private", label: "Private" },
+    { id: "symoh-contacts", label: "Contacts" }
+  ];
+  const results = [];
+  for (const b of buckets){
+    try{ results.push({ ...b, bytes: await listBucketBytes(b.id, user.id) }); }
+    catch(err){ console.warn("Couldn't list bucket", b.id, err); results.push({ ...b, bytes: null }); }
+  }
+  return results;
+}
+
+async function checkStorageWarning(force){
+  const banner = el("storage-warning-banner");
+  if (!banner) return;
+
+  const cached = localStorage.getItem("symoh_storage_check");
+  if (!force && cached){
+    const { at, bytes } = JSON.parse(cached);
+    if (Date.now() - at < STORAGE_CHECK_CACHE_MS){ renderStorageWarning(bytes); return; }
+  }
+
+  const bytes = await computeTotalSupabaseStorageBytes();
+  localStorage.setItem("symoh_storage_check", JSON.stringify({ at: Date.now(), bytes }));
+  renderStorageWarning(bytes);
+}
+
+function renderStorageWarning(bytes){
+  const banner = el("storage-warning-banner");
+  const pct = (bytes / SUPABASE_FREE_STORAGE_BYTES) * 100;
+  if (pct < 75){ banner.classList.add("hidden"); return; }
+
+  const critical = pct >= 90;
+  banner.style.background = critical ? "var(--stamp)" : "#8a6d1f";
+  banner.innerHTML = critical
+    ? `🚨 ${fmtBytes(bytes)} of ${fmtBytes(SUPABASE_FREE_STORAGE_BYTES)} used (${pct.toFixed(0)}%) — Supabase's free plan will stop accepting uploads once you hit the limit. Consider deleting old parcels or upgrading to Pro.`
+    : `⚠️ ${fmtBytes(bytes)} of ${fmtBytes(SUPABASE_FREE_STORAGE_BYTES)} used (${pct.toFixed(0)}%) across your whole Supabase project (store + private + contacts) — getting close to the free plan's 1GB limit.`;
+  banner.classList.remove("hidden");
+}
+
+
 const BACKUP_REMINDER_DAYS = 14;
 function markBackupDone(){
   localStorage.setItem("symoh_last_backup", new Date().toISOString());
@@ -2099,6 +2136,7 @@ el("ship-btn").addEventListener("click", async () => {
     resetIntake();
     openShipModal(lastShareId);
     loadPosts();
+    checkStorageWarning(true);
   } catch(err){
     progress.classList.add("hidden");
     alert("Shipping failed: " + (err.message || err));
@@ -2243,16 +2281,19 @@ async function createAlbumFlow(selectEl){
 
 /* ---------------- COMMENTS MODERATION ---------------- */
 el("comments-close")?.addEventListener("click", () => el("comments-modal").classList.add("hidden"));
+let activeCommentsPostId = null;
 async function openCommentsModal(postId){
+  activeCommentsPostId = postId;
+  el("comment-reply-input").value = "";
   const { data, error } = await sb.from("parcel_comments").select("*").eq("post_id", postId).order("created_at", { ascending: false });
   const list = el("comments-mod-list");
   if (error){ list.innerHTML = `<div class="hint" style="margin:0;">Couldn't load comments.</div>`; }
   else if (!data.length){ list.innerHTML = `<div class="hint" style="margin:0;">No comments on this parcel yet.</div>`; }
   else {
     list.innerHTML = data.map(c => `
-      <div class="trash-row" style="align-items:flex-start;">
+      <div class="trash-row" style="align-items:flex-start; ${c.is_owner ? 'border-color:var(--teal); background:rgba(46,92,85,0.08);' : ''}">
         <div class="trash-info">
-          <div class="trash-desc" style="white-space:normal; font-weight:600;">${(c.author_name||"Anonymous").replace(/</g,"&lt;")}</div>
+          <div class="trash-desc" style="white-space:normal; font-weight:600;">${c.is_owner ? '⭐ ' : ''}${(c.author_name||"Anonymous").replace(/</g,"&lt;")}</div>
           <div style="font-size:12px; margin:2px 0;">${c.comment.replace(/</g,"&lt;")}</div>
           <div class="trash-meta">${new Date(c.created_at).toLocaleString()}</div>
         </div>
@@ -2265,6 +2306,21 @@ async function openCommentsModal(postId){
   }
   el("comments-modal").classList.remove("hidden");
 }
+el("comment-reply-send")?.addEventListener("click", async () => {
+  const text = el("comment-reply-input").value.trim();
+  if (!text || !activeCommentsPostId) return;
+  const btn = el("comment-reply-send");
+  btn.disabled = true;
+  const { error } = await sb.from("parcel_comments").insert({
+    post_id: activeCommentsPostId,
+    author_name: "Symoh",
+    comment: text,
+    is_owner: true
+  });
+  btn.disabled = false;
+  if (error){ alert("Reply failed: " + error.message); return; }
+  openCommentsModal(activeCommentsPostId);
+});
 
 /* ---------------- VIEW LOG MODAL ---------------- */
 el("viewlog-close")?.addEventListener("click", () => el("viewlog-modal").classList.add("hidden"));
@@ -2289,9 +2345,57 @@ async function openViewLog(postId){
 el("storage-stats-btn")?.addEventListener("click", async () => {
   const posts = await fetchAllPostsForExport();
   renderStorageChart(posts);
+  renderTopParcels(posts);
   el("storage-stats-modal").classList.remove("hidden");
+
+  el("storage-by-bucket").innerHTML = `<div class="hint" style="margin:0;">Scanning buckets…</div>`;
+  el("storage-by-bucket-note").textContent = "";
+  const byBucket = await computeStorageByBucket();
+  renderStorageByBucket(byBucket);
 });
 el("storage-stats-close")?.addEventListener("click", () => el("storage-stats-modal").classList.add("hidden"));
+
+function renderStorageByBucket(buckets){
+  const box = el("storage-by-bucket");
+  const known = buckets.filter(b => b.bytes !== null);
+  const total = known.reduce((sum, b) => sum + b.bytes, 0) || 1;
+  box.innerHTML = buckets.map(b => {
+    if (b.bytes === null){
+      return `<div class="hint" style="margin:0;">${b.label}: couldn't scan (check connection and try again).</div>`;
+    }
+    const pct = Math.round((b.bytes / total) * 100);
+    return `
+      <div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;">
+          <span>${b.label}</span><span class="mono">${fmtBytes(b.bytes)}</span>
+        </div>
+        <div style="background:var(--line); border-radius:3px; height:6px; overflow:hidden;">
+          <div style="background:var(--teal); height:100%; width:${pct}%;"></div>
+        </div>
+      </div>`;
+  }).join("");
+  el("storage-by-bucket-note").textContent = "Scanned directly from Supabase Storage — reflects actual usage, not just the main store's own records.";
+}
+
+function renderTopParcels(posts){
+  const box = el("storage-top-parcels");
+  const withSize = posts.filter(p => p.file_size).slice().sort((a,b) => (b.file_size||0) - (a.file_size||0)).slice(0, 8);
+  if (!withSize.length){
+    box.innerHTML = `<div class="hint" style="margin:0;">No sized parcels yet (link-only parcels don't take storage space).</div>`;
+    return;
+  }
+  box.innerHTML = withSize.map(p => `
+    <div class="trash-row">
+      <div class="trash-info">
+        <div class="trash-desc">${(p.description || p.file_name || "(no description)").replace(/</g,"&lt;")}</div>
+        <div class="trash-meta">${fmtBytes(p.file_size)} · ${p.media_type}</div>
+      </div>
+      <button class="btn ghost sm" data-top-preview="${p.share_id}">Preview</button>
+    </div>`).join("");
+  box.querySelectorAll("[data-top-preview]").forEach(b => b.addEventListener("click", () => {
+    window.open(shareUrlFor(b.dataset.topPreview), "_blank");
+  }));
+}
 
 function renderStorageChart(posts){
   const sorted = posts.slice().sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
